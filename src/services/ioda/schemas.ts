@@ -3,11 +3,24 @@
  * @module services/ioda/schemas
  */
 import { z } from '@cyanheads/mcp-ts-core';
+import { PUBLICATION_ALLOWANCE_SECONDS } from './status.js';
 
-/** Supported entity vocabulary. */
-export const EntityTypeSchema = z.enum(['country', 'region', 'asn']);
+/** Supported entity vocabulary; a geoasn is one ASN's footprint within a region or country. */
+export const EntityTypeSchema = z.enum(['country', 'region', 'asn', 'geoasn']);
 /** Numeric measurement sources supported by this server. */
 export const NumericSourceSchema = z.enum(['bgp', 'ping-slash24', 'merit-nt']);
+/** IODA's published unit for each numeric source, verbatim from its /datasources listing. */
+export const SOURCE_UNITS = {
+  bgp: 'Visible /24s',
+  'ping-slash24': 'Up /24s',
+  'merit-nt': 'Unique Source IPs',
+} as const satisfies Record<z.infer<typeof NumericSourceSchema>, string>;
+/** One numeric source's unit, shared by signal semantics and status entries. */
+export const UnitSchema = z
+  .enum(SOURCE_UNITS)
+  .describe(
+    "IODA's published unit for this source's values; an aggregated bucket (step greater than nativeStep) is the mean of its native buckets, in the same unit.",
+  );
 /** Event and alert source filters. */
 export const SourceSchema = z.enum(['bgp', 'ping-slash24', 'merit-nt', 'gtr']);
 const extras = z.json();
@@ -17,7 +30,11 @@ export const EntitySchema = z
     code: z.string().describe('Source entity code'),
     name: z.string().describe('Source entity name'),
     type: z.string().nullable().optional().describe('Source entity type, if reported'),
-    subnames: z.array(extras).optional().describe('Additional source names'),
+    subnames: extras
+      .optional()
+      .describe(
+        'Additional source names, preserved verbatim: usually a list; geoasn search rows carry named parts such as asn and region or country',
+      ),
     attrs: z
       .record(z.string(), extras)
       .optional()
@@ -34,8 +51,20 @@ export const AlertSchema = z
     level: z.string().nullable().optional().describe('Literal source level'),
     condition: z.string().nullable().optional().describe('Literal detection condition'),
     method: z.string().nullable().optional().describe('Source detection method'),
-    value: z.number().nullable().optional().describe('Source measurement'),
-    historyValue: z.number().nullable().optional().describe('Source baseline'),
+    value: z
+      .number()
+      .nullable()
+      .optional()
+      .describe(
+        'Source measurement at the transition. bgp (Visible /24s), ping-slash24 (Up /24s), and merit-nt (Unique Source IPs) report it in the source unit; gtr (method sarima) reports IODA Traffic divided by 1,000,000 and truncated to an integer.',
+      ),
+    historyValue: z
+      .number()
+      .nullable()
+      .optional()
+      .describe(
+        'Source baseline that value is compared with, on the same per-source scale as value: the source unit for bgp, ping-slash24, and merit-nt; Traffic divided by 1,000,000 and truncated for gtr.',
+      ),
   })
   .catchall(extras)
   .describe('Source detection or recovery transition');
@@ -52,6 +81,29 @@ export const EventSchema = z
   })
   .catchall(extras)
   .describe('Source outage event with original timing and score');
+/** IODA's own per-entity ranking row over one window, relayed without local scoring. */
+export const SummarySchema = z
+  .object({
+    entity: EntitySchema.describe('Entity ranked'),
+    scores: z
+      .object({
+        overall: z
+          .number()
+          .describe(
+            "IODA's ranking score: overlapping events from different sources are merged, each merged event scores the product of its sources' scores, and overall sums the merged events",
+          ),
+      })
+      .catchall(z.number())
+      .describe(
+        'Unmodified window-total scores: overall plus one sum of event scores per <source>.<method> key, such as bgp.median or gtr.sarima',
+      ),
+    event_cnt: z
+      .number()
+      .int()
+      .describe("IODA's count of the entity's source events before merging"),
+  })
+  .catchall(extras)
+  .describe("One entity's unmodified IODA outage summary for the window");
 /** Numeric buckets, including missing and aligned boundary buckets. */
 export const NumericSeriesSchema = z
   .object({
@@ -74,7 +126,7 @@ export const ProvenanceSchema = z.object({
   endpoint: z
     .string()
     .regex(
-      /^https:\/\/api\.ioda\.inetintel\.cc\.gatech\.edu\/v2\/(?:entities\/query|outages\/(?:events|alerts)|signals\/raw\/(?:country|region|asn)\/[^\s/?#]+)$/,
+      /^https:\/\/api\.ioda\.inetintel\.cc\.gatech\.edu\/v2\/(?:entities\/query|outages\/(?:events|alerts|summary)|signals\/raw\/(?:country|region|asn|geoasn)\/[^\s/?#]+)$/,
     )
     .describe('Fixed HTTPS IODA upstream endpoint URL'),
   fetchedAt: z.iso.datetime().describe('Fetch completion time UTC'),
@@ -88,7 +140,14 @@ export const PaginationSchema = z.object({
   limit: z.number().int().positive().describe('Requested page size'),
   returned: z.number().int().nonnegative().describe('Returned record count'),
   more: z.enum(['possible', 'no']).describe('Whether another page may exist'),
-  nextPage: z.number().int().nonnegative().optional().describe('Next page when another may exist'),
+  nextPage: z
+    .number()
+    .int()
+    .nonnegative()
+    .optional()
+    .describe(
+      'Next page when another may exist and IODA can continue the request; absent from a full page it cannot continue, whose notice names the route to the rest',
+    ),
 });
 /** Required entity pair. */
 export const EntityReferenceSchema = z.object({
@@ -106,9 +165,24 @@ export const CoverageSchema = z.enum(['recent', 'stale', 'no_data', 'unknown']);
 export const SeriesSummarySchema = NumericSeriesSchema.omit({ values: true })
   .strip()
   .extend({
-    coverage: CoverageSchema.describe('Observation availability under the server freshness policy'),
+    coverage: CoverageSchema.describe(
+      `Observation availability, never health: recent when the latest completed observation ended within the ${PUBLICATION_ALLOWANCE_SECONDS}-second publication allowance of asOf, stale beyond it; no_data for an empty series or one with no observation and a missing bucket; unknown for coarse aggregates, no completed bucket, or only pending buckets`,
+    ),
     nonNullCount: z.number().int().nonnegative().describe('Completed in-window numeric buckets'),
-    nullCount: z.number().int().nonnegative().describe('Completed in-window missing buckets'),
+    nullCount: z
+      .number()
+      .int()
+      .nonnegative()
+      .describe(
+        `Completed in-window missing buckets: interior gaps and trailing nulls that ended more than ${PUBLICATION_ALLOWANCE_SECONDS} seconds before asOf`,
+      ),
+    pendingCount: z
+      .number()
+      .int()
+      .nonnegative()
+      .describe(
+        `Completed in-window null buckets after the latest observation that ended within ${PUBLICATION_ALLOWANCE_SECONDS} seconds of asOf; not yet due, not a promise they will be published`,
+      ),
     latest: z
       .object({
         value: z.number().describe('Latest eligible non-null aggregate'),
@@ -166,10 +240,11 @@ export const StatusEvidenceSchema = z.object({
       z
         .object({
           source: NumericSourceSchema.describe('Numeric source'),
+          unit: UnitSchema,
           coverage: CoverageSchema.describe('Source coverage precedence'),
           series: z.array(SeriesSummarySchema).describe('Independent subtype summaries'),
         })
-        .describe('Coverage and independent subtype summaries for one core source'),
+        .describe('Unit, coverage and independent subtype summaries for one core source'),
     )
     .describe('Coverage for each core source'),
   components: z.array(ComponentSchema).describe('Five component outcomes in request order'),
@@ -189,6 +264,8 @@ export type Entity = z.infer<typeof EntitySchema>;
 export type Alert = z.infer<typeof AlertSchema>;
 /** Lossless event record. */
 export type Event = z.infer<typeof EventSchema>;
+/** Lossless per-entity summary row. */
+export type Summary = z.infer<typeof SummarySchema>;
 /** Lossless numeric series. */
 export type NumericSeries = z.infer<typeof NumericSeriesSchema>;
 /** Endpoint provenance. */

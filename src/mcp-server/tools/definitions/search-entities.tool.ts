@@ -11,16 +11,22 @@ import {
   ProvenanceSchema,
 } from '@/services/ioda/index.js';
 import {
+  clampLimit,
+  composeEnrichment,
+  emptyPageNotice,
   enrichment,
   enrichmentTrailer,
   entityFilter,
   entityInputs,
   entityType,
   finish,
-  pageEnrichment,
+  invocationClock,
   pageInputs,
+  relatedScope,
   renderOutput,
+  scopeInputs,
   searchQuery,
+  unknownScopeNotice,
 } from '../ioda-common.js';
 
 const Output = z.object({
@@ -30,7 +36,7 @@ const Output = z.object({
 });
 export const searchEntities = tool('ioda_search_entities', {
   description:
-    'Resolve country, region, or autonomous-system names and codes for outage investigations. Choose entityType and either query or entityCode; omit both to list the type. Countries use two letters, regions numeric IODA codes, ASNs decimal digits (AS prefix accepted). Metadata does not establish measurement coverage. Pages are zero-based; keep limit fixed when continuing.',
+    'Resolve country, region, autonomous-system, or geoasn (one ASN within a region or country) names and codes for outage investigations. Choose entityType and either query or entityCode; omit both to list the type. Countries use two letters, regions numeric IODA codes, ASNs decimal digits (AS prefix accepted), geoasns an ASN and a region or country code (40934-576, 59962-IR). Add relatedToType and relatedToCode to list entityType entities within one country, region, ASN, or geoasn, such as the regions or networks of a country; a scope combines with query. Metadata does not establish measurement coverage. Pages are zero-based; keep limit fixed when continuing.',
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: true },
   input: z.object({
     entityType: entityInputs.entityType,
@@ -41,6 +47,7 @@ export const searchEntities = tool('ioda_search_entities', {
       .describe(
         'Name substring, trimmed to at most 200 characters; blank is omitted. Mutually exclusive with entityCode.',
       ),
+    ...scopeInputs,
     ...pageInputs,
   }),
   output: Output,
@@ -53,7 +60,7 @@ export const searchEntities = tool('ioda_search_entities', {
       thrownBy: 'service',
       when: 'Invalid entity type, code, or incomplete pair.',
       recovery:
-        'Call ioda_search_entities with entityType and query to resolve a country, region, or ASN, then call ioda_search_entities with the selected entityType and a returned code as entityCode.',
+        'Call ioda_search_entities with entityType and query to resolve a country, region, ASN, or geoasn, then call ioda_search_entities with the selected entityType and a returned code as entityCode.',
     },
     {
       reason: 'conflicting_search',
@@ -62,7 +69,22 @@ export const searchEntities = tool('ioda_search_entities', {
       recovery:
         'Call ioda_search_entities with either query or entityCode, leaving the other omitted.',
     },
-
+    {
+      reason: 'invalid_scope',
+      code: JsonRpcErrorCode.ValidationError,
+      thrownBy: 'service',
+      when: 'relatedToType and relatedToCode are incomplete, unsupported, or malformed, or a scope comes with entityCode.',
+      recovery:
+        'Call ioda_search_entities with entityType, both relatedToType and relatedToCode (country, region, asn, or geoasn and its code), and no entityCode, or omit both scope fields.',
+    },
+    {
+      reason: 'invalid_query',
+      code: JsonRpcErrorCode.ValidationError,
+      thrownBy: 'service',
+      when: 'query is longer than 200 characters after trimming.',
+      recovery:
+        'Call ioda_search_entities with a query of at most 200 characters, or omit query to list the entity type.',
+    },
     {
       reason: 'upstream_bad_request',
       code: JsonRpcErrorCode.InvalidParams,
@@ -123,36 +145,41 @@ export const searchEntities = tool('ioda_search_entities', {
     },
   ],
   async handler(input, ctx) {
-    const now = Date.now();
-    const deadline = now + 45000;
-    const filter = entityFilter(input, 'ioda_search_entities');
-    const type = entityType(input.entityType, 'ioda_search_entities');
+    const { deadline } = invocationClock();
+    const filter = entityFilter(input);
+    const type = entityType(input.entityType);
+    const scope = relatedScope(input);
     const query = searchQuery(input.query);
     if (query && filter.entityCode) throw ctx.fail('conflicting_search');
+    const limit = clampLimit(input.limit, input.page);
     const request = {
       entityType: type,
       ...(filter.entityCode && { entityCode: filter.entityCode }),
       ...(query && { query }),
-      limit: input.limit,
+      ...scope,
+      limit: limit.value,
       page: input.page,
     };
     const result = await getIodaService().searchEntities(request, ctx, { deadline });
-    const notices: string[] = [];
-    if (!result.entities.length) {
-      notices.push(
-        input.page > 0
-          ? 'This page is empty. Call ioda_search_entities with page 0 and the same filters, or return to the previous page.'
-          : 'No matching entities. Call ioda_search_entities with a shorter query or omit query to list this entity type.',
-      );
-      if (filter.entityCode)
-        notices.push(
-          'No entity metadata matched. Call ioda_search_entities with query to resolve the name; metadata alone does not establish signal coverage.',
-        );
-    }
+    const empty = !result.entities.length;
+    // An empty first page reads by the inputs given: query advice only for a query.
+    const zeroHit = query
+      ? 'No matching entities. Call ioda_search_entities with a shorter query or omit query to list this entity type.'
+      : filter.entityCode
+        ? `IODA lists no ${type} with entityCode ${filter.entityCode}. Call ioda_search_entities with entityType ${type} and the name as query to find its code.`
+        : `IODA lists no ${type} entities${scope ? ` within ${scope.relatedToType} ${scope.relatedToCode}` : ''}.`;
     return finish(
       Output,
       result,
-      pageEnrichment(request, result.pagination, notices.join(' ')),
+      composeEnrichment(
+        { ...request, ...(scope && { scope: 'related' }) },
+        [
+          limit.notice,
+          empty && (input.page > 0 ? emptyPageNotice('ioda_search_entities') : zeroHit),
+          empty && !input.page && scope && unknownScopeNotice,
+        ],
+        result.pagination,
+      ),
       ctx,
       'ioda_search_entities',
       deadline,

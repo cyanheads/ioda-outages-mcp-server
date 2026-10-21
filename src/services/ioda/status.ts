@@ -11,6 +11,13 @@ import type {
   TimeWindow,
 } from './schemas.js';
 
+/**
+ * How long after a bucket ends IODA may still publish it, for every core source. A trailing
+ * null within it is pending rather than missing, and a latest observation within it is recent.
+ * Server policy measured against observed lag, not an upstream SLA.
+ */
+export const PUBLICATION_ALLOWANCE_SECONDS = 1800;
+
 /** Summarize completed buckets without inferring replacement intervals or health. */
 export function summarizeSeries(
   series: NumericSeries,
@@ -29,6 +36,10 @@ export function summarizeSeries(
     (bucket): bucket is typeof bucket & { value: number } => bucket.value !== null,
   );
   const latest = numeric.at(-1);
+  const pendingCount = eligible
+    .slice(eligible.findLastIndex((bucket) => bucket.value !== null) + 1)
+    .filter((bucket) => asOf - bucket.bucketUntil <= PUBLICATION_ALLOWANCE_SECONDS).length;
+  const nullCount = eligible.length - numeric.length - pendingCount;
   const extrema =
     latest &&
     numeric.reduce(
@@ -44,10 +55,12 @@ export function summarizeSeries(
       : eligible.length === 0
         ? 'unknown'
         : !latest
-          ? 'no_data'
+          ? nullCount > 0
+            ? 'no_data'
+            : 'unknown'
           : series.step !== series.nativeStep
             ? 'unknown'
-            : asOf - latest.bucketUntil <= 3 * series.nativeStep
+            : asOf - latest.bucketUntil <= PUBLICATION_ALLOWANCE_SECONDS
               ? 'recent'
               : 'stale';
   return {
@@ -63,7 +76,8 @@ export function summarizeSeries(
     nativeStep: metadata.nativeStep,
     coverage,
     nonNullCount: numeric.length,
-    nullCount: eligible.length - numeric.length,
+    nullCount,
+    pendingCount,
     ...(latest && {
       latest,
       ...extrema,

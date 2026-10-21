@@ -10,7 +10,7 @@ vi.mock('@cyanheads/mcp-ts-core', async (original) => ({
   createApp: capture.app,
 }));
 
-it('registers exactly the five read-only IODA tools, identity and lifecycle', async () => {
+it('registers exactly the six read-only IODA tools, identity and lifecycle', async () => {
   await import('../../src/index.js');
   expect(capture.app).toHaveBeenCalledOnce();
   const options = capture.app.mock.calls[0]?.[0];
@@ -25,6 +25,7 @@ it('registers exactly the five read-only IODA tools, identity and lifecycle', as
     'ioda_search_entities',
     'ioda_get_status',
     'ioda_find_outages',
+    'ioda_summarize_outages',
     'ioda_get_signals',
     'ioda_get_alerts',
   ]);
@@ -44,4 +45,11 @@ it('registers exactly the five read-only IODA tools, identity and lifecycle', as
     'Missing alerts or entity metadata never establish healthy',
   );
   expect(options.instructions).toContain("entity's code as entityCode");
+  expect(options.instructions).toContain(
+    "call ioda_summarize_outages with entityType for IODA's outage-score ranking; its scores are window totals for ranking one request's rows, not current status.",
+  );
+  expect(options.instructions).toContain(
+    'pass entityType with relatedToType and relatedToCode (for example region within country IR) to ioda_search_entities, ioda_find_outages, ioda_summarize_outages, or ioda_get_alerts.',
+  );
+  expect(options.instructions).toContain('geoasn (one ASN within a region or country)');
 });

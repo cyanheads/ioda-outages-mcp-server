@@ -4,18 +4,27 @@
  */
 import { tool, z } from '@cyanheads/mcp-ts-core';
 import { JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
-import { getIodaService, StatusEvidenceSchema } from '@/services/ioda/index.js';
 import {
+  getIodaService,
+  NumericSourceSchema,
+  PUBLICATION_ALLOWANCE_SECONDS,
+  STATUS_REQUESTS,
+  StatusEvidenceSchema,
+} from '@/services/ioda/index.js';
+import {
+  clampLookbackHours,
+  composeEnrichment,
   enrichment,
   enrichmentTrailer,
   entityInputs,
   finish,
+  invocationClock,
   renderOutput,
   requiredEntity,
+  SERVED_CAPS,
 } from '../ioda-common.js';
 export const getStatus = tool('ioda_get_status', {
-  description:
-    'Inspect recent IODA detection evidence and measurement coverage for one entity over a lookback of 1–24 hours. Collect events, alerts, bgp, ping-slash24 and merit-nt evidence. Partial failures remain explicit and route to standalone tools. recent, stale, no_data and unknown describe observation availability; no alerts is not an all-clear. IODA measures macroscopic connectivity, not one office or a shutdown cause.',
+  description: `Inspect recent IODA detection evidence and measurement coverage for one entity over a lookback of 1–24 hours. Collect events, alerts, bgp, ping-slash24 and merit-nt evidence. Partial failures remain explicit and route to standalone tools. recent, stale, no_data and unknown describe observation availability; buckets within the ${PUBLICATION_ALLOWANCE_SECONDS}-second publication allowance count as pending, not missing. No alerts is not an all-clear. IODA measures macroscopic connectivity, not one office or a shutdown cause.`,
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: true },
   input: z.object({
     ...entityInputs,
@@ -23,9 +32,11 @@ export const getStatus = tool('ioda_get_status', {
       .number()
       .int()
       .min(1)
-      .max(24)
+      .max(SERVED_CAPS.lookbackHours * 10)
       .default(6)
-      .describe('Hours before the captured invocation time; exact window is returned.'),
+      .describe(
+        'Hours before the captured invocation time; values above 24 are served as 24 with a notice naming the uncovered earlier window. The exact window is returned.',
+      ),
   }),
   output: StatusEvidenceSchema,
   enrichment,
@@ -37,14 +48,13 @@ export const getStatus = tool('ioda_get_status', {
       thrownBy: 'service',
       when: 'Invalid entity type, code, or incomplete pair.',
       recovery:
-        'Call ioda_search_entities with entityType and query to resolve a country, region, or ASN, then call ioda_get_status with the selected entityType and a returned code as entityCode.',
+        'Call ioda_search_entities with entityType and query to resolve a country, region, ASN, or geoasn, then call ioda_get_status with the selected entityType and a returned code as entityCode.',
     },
-
     {
       reason: 'upstream_bad_request',
       code: JsonRpcErrorCode.InvalidParams,
       thrownBy: 'service',
-      when: 'IODA rejects the request with HTTP 400 or an error envelope.',
+      when: 'IODA rejects the request with an error envelope or an HTTP 400 other than a missing entity.',
       recovery:
         'Call ioda_get_status with a narrower window and supported filters; use ioda_search_entities to verify the entity code before retrying.',
     },
@@ -60,7 +70,7 @@ export const getStatus = tool('ioda_get_status', {
       reason: 'entity_not_found',
       code: JsonRpcErrorCode.NotFound,
       thrownBy: 'service',
-      when: 'IODA returns an explicit entity 404.',
+      when: 'A numeric source finds no IODA metadata entity for the code and no event, alert, or series was returned. IODA synthesizes metadata for any ASN, so an unknown ASN reads as no data instead.',
       recovery:
         'Call ioda_search_entities with entityType and the name as query, then retry ioda_get_status with the selected entityType and a returned code as entityCode.',
     },
@@ -100,40 +110,30 @@ export const getStatus = tool('ioda_get_status', {
     },
   ],
   async handler(input, ctx) {
-    const now = Date.now();
-    const deadline = now + 45000;
+    const { now, deadline } = invocationClock();
     const asOf = Math.floor(now / 1000);
-    const request = {
-      ...requiredEntity(input, 'ioda_get_status'),
-      asOf,
-      lookbackHours: input.lookbackHours,
-    };
+    const lookback = clampLookbackHours(input.lookbackHours, asOf);
+    const request = { ...requiredEntity(input), asOf, lookbackHours: lookback.value };
     const result = await getIodaService().getStatusEvidence(request, ctx, { deadline });
     const applied = {
       ...request,
-      from: asOf - input.lookbackHours * 3600,
-      until: asOf,
-      events: {
-        limit: 20,
-        page: 0,
-        includeAlerts: false,
-        extendWindowSeconds: 1209600,
-        format: 'ioda',
-        overall: false,
+      ...result.window,
+      events: { ...STATUS_REQUESTS.events, format: 'ioda', overall: false },
+      alerts: STATUS_REQUESTS.alerts,
+      signals: {
+        sources: NumericSourceSchema.options,
+        ...STATUS_REQUESTS.signals,
+        publicationAllowanceSeconds: PUBLICATION_ALLOWANCE_SECONDS,
       },
-      alerts: { limit: 100, page: 0, extendWindowSeconds: 0 },
-      signals: { sources: ['bgp', 'ping-slash24', 'merit-nt'], maxPoints: 2000 },
     };
     return finish(
       StatusEvidenceSchema,
       result,
-      {
-        applied,
-        ...(result.components.some((item) => item.state === 'failed') && {
-          notice:
-            'Evidence is incomplete. Follow each failed component recovery with its standalone tool; missing evidence does not establish healthy connectivity.',
-        }),
-      },
+      composeEnrichment(applied, [
+        lookback.notice,
+        result.components.some((item) => item.state === 'failed') &&
+          'Evidence is incomplete. Follow each failed component recovery with its standalone tool; missing evidence does not establish healthy connectivity.',
+      ]),
       ctx,
       'ioda_get_status',
       deadline,

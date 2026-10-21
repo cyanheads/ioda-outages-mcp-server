@@ -5,12 +5,23 @@
 import { type Context, z } from '@cyanheads/mcp-ts-core';
 import { JsonRpcErrorCode, McpError } from '@cyanheads/mcp-ts-core/errors';
 import { createPacer, httpStatusToErrorCode, withRetry } from '@cyanheads/mcp-ts-core/utils';
-import { type IodaTool, iodaError } from './errors.js';
+import { cancelledError, type IodaReason, type IodaTool, iodaError } from './errors.js';
 import type { Provenance } from './schemas.js';
 import type { IodaDependencies, RequestBudget } from './types.js';
 
 const ORIGIN = 'https://api.ioda.inetintel.cc.gatech.edu/v2';
 const BODY_BYTES = 2 * 1024 * 1024;
+/** Classified HTTP failures; any other non-2xx status is upstream_unavailable. */
+const HTTP_REASONS: Partial<Record<number, IodaReason>> = {
+  400: 'upstream_bad_request',
+  401: 'upstream_unauthorized',
+  403: 'upstream_forbidden',
+  404: 'entity_not_found',
+  408: 'upstream_timeout',
+  422: 'upstream_unprocessable',
+  429: 'upstream_rate_limited',
+  504: 'upstream_timeout',
+};
 const EnvelopeSchema = z.object({
   error: z.json().optional(),
   data: z.json(),
@@ -18,6 +29,13 @@ const EnvelopeSchema = z.object({
     .object({ requestTime: z.json().optional(), responseTime: z.json().optional() })
     .optional(),
   copyright: z.json().optional(),
+});
+/**
+ * IODA's HTTP 400 envelope for a country, region, or geoasn code with no metadata entity
+ * (it synthesizes metadata for any ASN). Keyed on the prefix; the trailing count is incidental.
+ */
+const MissingEntitySchema = z.object({
+  error: z.string().startsWith('cannot find corresponding metadata entity'),
 });
 
 /** Owns one shared queue and the full exchange/parse retry boundary. */
@@ -49,15 +67,10 @@ export class IodaApiClient {
     ctx: Context,
     budget: RequestBudget,
   ): Promise<{ data: T; provenance: Provenance }> {
-    const signal = AbortSignal.any([ctx.signal, ...(budget.signal ? [budget.signal] : [])]);
-    const remaining = budget.deadline - 1000 - this.now();
-    if (signal.aborted)
-      throw iodaError(
-        JsonRpcErrorCode.RequestCancelled,
-        'request_cancelled',
-        'IODA investigation cancelled.',
-        tool,
-      );
+    const { signal } = ctx;
+    const collectionDeadline = budget.deadline - 1000;
+    const remaining = collectionDeadline - this.now();
+    if (signal.aborted) throw cancelledError(tool);
     if (remaining <= 0)
       throw iodaError(
         JsonRpcErrorCode.Timeout,
@@ -72,7 +85,7 @@ export class IodaApiClient {
       return await withRetry(
         ({ signal: retrySignal }) =>
           this.pacer.run(
-            () => this.attempt(url, path, schema, tool, retrySignal, budget.deadline - 1000),
+            () => this.attempt(url, path, schema, tool, retrySignal, collectionDeadline),
             { signal: retrySignal },
           ),
         {
@@ -89,13 +102,7 @@ export class IodaApiClient {
         },
       );
     } catch (error) {
-      if (signal.aborted)
-        throw iodaError(
-          JsonRpcErrorCode.RequestCancelled,
-          'request_cancelled',
-          'IODA investigation cancelled.',
-          tool,
-        );
+      if (signal.aborted) throw cancelledError(tool);
       if (error instanceof McpError) {
         if (error.data?.reason === 'pacer_shed')
           throw iodaError(
@@ -193,28 +200,20 @@ export class IodaApiClient {
       );
     }
     if (!response.ok) {
-      void response.body?.cancel().catch(() => {});
       const status = response.status;
-      const reason =
-        status === 400
-          ? 'upstream_bad_request'
-          : status === 422
-            ? 'upstream_unprocessable'
-            : status === 404
-              ? 'entity_not_found'
-              : status === 429
-                ? 'upstream_rate_limited'
-                : status === 401
-                  ? 'upstream_unauthorized'
-                  : status === 403
-                    ? 'upstream_forbidden'
-                    : status === 408 || status === 504
-                      ? 'upstream_timeout'
-                      : 'upstream_unavailable';
+      if (status === 400 && (await namesMissingEntity(response, signal, tool)))
+        throw iodaError(
+          JsonRpcErrorCode.NotFound,
+          'entity_not_found',
+          'IODA has no metadata entity for this entityType and entityCode.',
+          tool,
+          { status },
+        );
+      void response.body?.cancel().catch(() => {});
       const retryAfter = response.headers.get('retry-after');
       throw iodaError(
         httpStatusToErrorCode(status) ?? JsonRpcErrorCode.ServiceUnavailable,
-        reason,
+        HTTP_REASONS[status] ?? 'upstream_unavailable',
         `IODA returned HTTP ${status}.`,
         tool,
         { status, ...(retryAfter !== null && { retryAfter }) },
@@ -258,11 +257,7 @@ export class IodaApiClient {
         'IODA returned an invalid response envelope.',
         tool,
       );
-    if (
-      envelope.data.error !== undefined &&
-      envelope.data.error !== null &&
-      envelope.data.error !== ''
-    )
+    if (envelope.data.error != null && envelope.data.error !== '')
       throw iodaError(
         JsonRpcErrorCode.InvalidParams,
         'upstream_bad_request',
@@ -291,6 +286,22 @@ export class IodaApiClient {
   }
 }
 
+/**
+ * Whether a 400 body is the missing-entity envelope. An unreadable, oversized or non-JSON body
+ * is not. Cancellation and the exchange deadline settle `attempt`'s race before this returns.
+ */
+async function namesMissingEntity(
+  response: Response,
+  signal: AbortSignal,
+  tool: IodaTool,
+): Promise<boolean> {
+  try {
+    const text = await readBoundedBody(response, signal, tool);
+    return MissingEntitySchema.safeParse(JSON.parse(text)).success;
+  } catch {
+    return false;
+  }
+}
 async function readBoundedBody(
   response: Response,
   signal: AbortSignal,
@@ -299,7 +310,8 @@ async function readBoundedBody(
   const reader = response.body?.getReader();
   if (!reader) return '';
   let size = 0;
-  const chunks: Uint8Array[] = [];
+  let text = '';
+  const decoder = new TextDecoder();
   const cancel = () => {
     void reader.cancel().catch(() => {});
   };
@@ -325,15 +337,9 @@ async function readBoundedBody(
           tool,
         );
       }
-      chunks.push(value);
+      text += decoder.decode(value, { stream: true });
     }
-    const bytes = new Uint8Array(size);
-    let offset = 0;
-    for (const chunk of chunks) {
-      bytes.set(chunk, offset);
-      offset += chunk.byteLength;
-    }
-    return new TextDecoder().decode(bytes);
+    return text + decoder.decode();
   } finally {
     signal.removeEventListener('abort', cancel);
     reader.releaseLock();

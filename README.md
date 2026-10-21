@@ -1,7 +1,7 @@
 <div align="center">
   <h1>@cyanheads/ioda-outages-mcp-server</h1>
   <p><b>Investigate Internet outages with IODA events, alerts, and connectivity signals via MCP. STDIO or Streamable HTTP.</b>
-  <div>5 Tools</div>
+  <div>6 Tools</div>
   </p>
 </div>
 
@@ -23,15 +23,16 @@
 
 ## Overview
 
-Internet outage evidence from [IODA](https://ioda.inetintel.cc.gatech.edu/), using its public v2 API. Resolve countries, regions, and autonomous systems; inspect recent detections and measurement coverage; then investigate events, alert transitions, and numeric signals. Runs over stdio or stateless Streamable HTTP without an API key.
+Internet outage evidence from [IODA](https://ioda.inetintel.cc.gatech.edu/), using its public v2 API. Resolve countries, regions, and autonomous systems; inspect recent detections and measurement coverage; then investigate events, alert transitions, per-entity outage rankings, and numeric signals. Runs over stdio or stateless Streamable HTTP without an API key.
 
 ### Tools
 
 | Tool | Description |
 |:---|:---|
-| `ioda_search_entities` | Resolve country, region, or ASN names and codes |
+| `ioda_search_entities` | Resolve country, region, ASN, or geoasn names and codes |
 | `ioda_get_status` | Inspect recent detection evidence and coverage across three numeric sources |
 | `ioda_find_outages` | Retrieve overlapping outage events for an entity or globally |
+| `ioda_summarize_outages` | Rank the entities of one type by IODA's per-window outage score |
 | `ioda_get_signals` | Fetch BGP, active IPv4 /24 probing, or Merit telescope numeric series |
 | `ioda_get_alerts` | Retrieve detection and recovery transitions with source baselines |
 
@@ -39,39 +40,48 @@ Internet outage evidence from [IODA](https://ioda.inetintel.cc.gatech.edu/), usi
 
 ### `ioda_search_entities` <sub>tool</sub>
 
-- Required `entityType: country | region | asn`; choose `query` (up to 200 trimmed characters) or `entityCode`, or omit both to list the type. Country codes use two letters, regions use IODA numeric codes, and ASNs use decimal digits.
-- Up to 100 records per page, default 20; `page` starts at 0. Returns original `entities`, `pagination`, and `provenance`; a metadata match does not establish measurement coverage.
+- Required `entityType: country | region | asn | geoasn` (a geoasn is one ASN within a region or country); choose `query` (up to 200 trimmed characters) or `entityCode`, or omit both to list the type. Country codes use two letters, regions use IODA numeric codes, ASNs use decimal digits, and geoasns join an ASN and a region or country code (`40934-576`, `59962-IR`).
+- Optional `relatedToType` and `relatedToCode` list `entityType` entities within one country, region, ASN, or geoasn, such as the regions or networks of a country; both or neither, `entityType` required, no `entityCode`, and a scope combines with `query`. A very large scope (thousands of networks in one country) can be incomplete; prefer region scopes there.
+- `limit` is 1–1,000, default 20, served at most 100; `page` starts at 0. Returns original `entities`, `pagination`, and `provenance`; a metadata match does not establish measurement coverage.
 
 ---
 
 ### `ioda_get_status` <sub>tool</sub>
 
-- Required `entityType` and `entityCode`; `lookbackHours` is 1–24, default 6. Collects events, alerts, and `bgp`, `ping-slash24`, and `merit-nt` summaries within the returned `window`.
-- `detection` is `observed`, `none_returned`, or `unknown`; source `coverage` is independently `recent`, `stale`, `no_data`, or `unknown`. Native completed buckets count as recent within three native sampling intervals; this is a server policy, not an upstream SLA.
-- `components` disclose partial failures and standalone-tool recovery. Event/alert pages carry continuation metadata; raw samples come from `ioda_get_signals`. All-component failure fails the call.
+- Required `entityType` (`country`, `region`, `asn`, or `geoasn`) and `entityCode`; `lookbackHours` is 1–240, default 6, served at most 24 with a notice naming the uncovered earlier window. Collects events, alerts, and `bgp`, `ping-slash24`, and `merit-nt` summaries within the returned `window`.
+- `detection` is `observed`, `none_returned`, or `unknown`; source `coverage` is independently `recent`, `stale`, `no_data`, or `unknown`. `recent` means the latest completed observation ended within a 1,800-second publication allowance of the call, the same for all three sources, a server policy rather than an upstream SLA. Trailing nulls inside the allowance count as `pendingCount`, not `nullCount`.
+- Each `signals` entry carries IODA's `unit` for its source (`Visible /24s`, `Up /24s`, `Unique Source IPs`); `latest`, `minimum`, and `maximum` are in that unit.
+- `components` disclose partial failures and standalone-tool recovery. Event/alert pages carry continuation metadata; raw samples come from `ioda_get_signals`. All-component failure fails the call; an unknown country, region, or geoasn code fails with `entity_not_found`.
 
 ---
 
 ### `ioda_find_outages` <sub>tool</sub>
 
-- Required `from` and `until`; optional `entityType`, `entityCode`, and `source: bgp | ping-slash24 | merit-nt | gtr`. Omit entity filters for global scope; a code requires its type. Up to 100 events per page, default 20.
+- Required `from` and `until`; optional `entityType` (`country`, `region`, `asn`, or `geoasn`), `entityCode`, and `source: bgp | ping-slash24 | merit-nt | gtr`. Omit entity filters for global scope; a code requires its type. Optional `relatedToType` and `relatedToCode` limit results to `entityType` entities within one country, region, ASN, or geoasn (both or neither, `entityType` required, no `entityCode`). `limit` is 1–1,000, default 20, served at most 100.
 - Returns source `events`, `pagination`, and `provenance`. Scores retain their source meaning; starts may precede the window and an end clipped at `until` does not establish recovery.
-- `includeAlerts` defaults to false; `extendWindowSeconds` is 0–1,209,600, default 1,209,600. Zero extension can miss long-running detections.
+- `includeAlerts` defaults to false; `extendWindowSeconds` is 0–12,096,000, served at most 1,209,600. Omitted, it is 1,209,600 with `entityType` and 86,400 without it, because large global extensions can time out; the applied value is echoed, and a notice discloses the global default. Global searches over multi-day windows can still time out: narrow the window or add `entityType`. Zero extension can miss long-running detections.
+
+---
+
+### `ioda_summarize_outages` <sub>tool</sub>
+
+- Required `entityType`, `from`, and `until`; optional `entityCode` for one entity, or `relatedToType` and `relatedToCode` to rank `entityType` entities within one country, region, ASN, or geoasn (both or neither, no `entityCode`). `limit` is 1–1,000, default 20, served at most 100; `extendWindowSeconds` is 0–12,096,000, default 1,209,600, served at most 1,209,600. There is no `source` input.
+- Returns `summaries` in IODA's order, descending `scores.overall`, with `pagination` and `provenance`. Each row carries the `entity`, `event_cnt` (IODA's count of source events before merging), and unmodified `scores`: `overall` plus one sum of event scores per `<source>.<method>` key. IODA merges overlapping events from different sources, scores each merged event as the product of its sources' scores, and sums the merged events into `overall`.
+- Scores are window totals for ranking the rows of one request, not current status, and are not comparable across requests with different windows. Large type-only rankings (every region, for example) can time out; add `entityCode` or a related scope. An empty result is not an all-clear.
 
 ---
 
 ### `ioda_get_signals` <sub>tool</sub>
 
-- Required entity pair, `from`, `until`, and `source: bgp | ping-slash24 | merit-nt`. `maxPoints` is 1–2,000, default 200: an upstream aggregation target, not a hard returned-sample cap.
-- Returns every numeric subtype in `series`, source-specific `semantics`, and `provenance`. `from`, `until`, `step`, `nativeStep`, and nulls preserve aligned bucket boundaries and missing observations; smaller targets lose temporal resolution.
-- `gtr` and `ucsd-nt` are not supported numeric sources. Null is not zero connectivity, and coarse or future boundary buckets cannot certify current coverage.
+- Required entity pair (`entityType` may be `geoasn`), `from`, `until`, and `source: bgp | ping-slash24 | merit-nt` (`gtr` and `ucsd-nt` are not numeric sources here). `maxPoints` is 1–20,000, default 200, served at most 2,000: an upstream aggregation target, not a hard returned-sample cap.
+- Returns every numeric subtype in `series`, source-specific `semantics` (measurement, IODA's `unit`, caveat), and `provenance`. An unknown country, region, or geoasn code fails with `entity_not_found`. `from`, `until`, `step`, `nativeStep`, and nulls preserve aligned bucket boundaries and missing observations; smaller targets lose temporal resolution.
 
 ---
 
 ### `ioda_get_alerts` <sub>tool</sub>
 
-- Required `from` and `until`; optional entity/source filters match `ioda_find_outages`. Up to 100 transitions per page, default 20; `extendWindowSeconds` is 0–1,209,600, default 0.
-- Returns `alerts`, `pagination`, and `provenance`, retaining source `level`, `condition`, `value`, and `historyValue` when reported. A missing transition does not establish health or rule out an event that began earlier.
+- Required `from` and `until`; optional entity, source, and related-scope filters match `ioda_find_outages`; a related scope is served at page 0 only, because IODA cannot continue scoped alerts. `limit` is 1–1,000, default 20, served at most 100; `extendWindowSeconds` is 0–12,096,000, default 0, served at most 1,209,600.
+- Returns `alerts`, `pagination`, and `provenance`, retaining source `level`, `condition`, `value`, and `historyValue` when reported. `value` and `historyValue` are in the source unit for `bgp`, `ping-slash24`, and `merit-nt`; for `gtr` they are IODA Traffic divided by 1,000,000 and truncated. A missing transition does not establish health or rule out an event that began earlier.
 
 ## Features
 
@@ -82,19 +92,19 @@ IODA-specific:
 - Keyless reads from a fixed HTTPS API origin; no local database or native helper.
 - Historical windows use integer Unix seconds UTC: `from < until <= now`, at most 31 days. Split longer investigations into adjacent windows.
 - Pagination is zero-based; follow `nextPage` with filters and `limit` unchanged. `more: "possible"` signals possible continuation, not a known total; restart at page 0 after changing the limit.
+- Numeric inputs accept up to ten times their served cap (`limit` 100, `maxPoints` 2,000, `lookbackHours` 24, `extendWindowSeconds` 1,209,600); a larger value is served at the cap and a notice names the requested value, the served value, and the route to the rest. Minimums and values above the accepted maximum fail argument validation.
 - Shared request pacing allows one in-flight request and at least two seconds between starts, with a 45-second invocation deadline. Avoid concurrent investigations.
 - IODA describes macroscopic connectivity. Missing detections are not an all-clear; source scores are not universal severity, and observations cannot establish a shutdown cause or one office's connectivity.
 
 Agent-friendly output:
 
-- Provenance — endpoint links, fetch times, and original Georgia Tech Research Corporation attribution accompany returned evidence; `applied` echoes effective inputs.
+- Provenance — endpoint links, fetch times, and the original Georgia Tech Research Corporation attribution accompany returned evidence; `applied` echoes effective inputs.
 - Explicit uncertainty — null samples, missing fields, source coverage, and partial component failures stay distinct.
-- Complete response surfaces — `content[]` and `structuredContent` carry the same data, including enrichment; records are never silently dropped to fit.
-- Bounded responses — upstream bodies are capped at 2 MiB and the combined response at 96 KiB. `response_too_large` gives recovery: reduce page limits and restart at 0, disable `includeAlerts`, lower `maxPoints`, or split windows. For status, shorten `lookbackHours` or call the standalone tools.
+- Complete, bounded responses — `content[]` and `structuredContent` carry the same data, enrichment included. Upstream bodies cap at 2 MiB and the combined response at 96 KiB; past that, `response_too_large` names a smaller call instead of dropping records.
 
 ## Getting started
 
-Add one of these configurations to your MCP client. IODA requires no API key.
+Add the following to your MCP client configuration file. IODA requires no API key.
 
 ```json
 {
@@ -108,7 +118,7 @@ Add one of these configurations to your MCP client. IODA requires no API key.
 }
 ```
 
-Or with npx (Node.js v24+):
+Or with npx (no Bun required):
 
 ```json
 {
@@ -136,66 +146,91 @@ Or with Docker:
 }
 ```
 
-For Streamable HTTP from a local checkout:
+For Streamable HTTP, set the transport and start the server:
 
 ```sh
 MCP_TRANSPORT_TYPE=http MCP_HTTP_PORT=3010 bun run start:http
-# Endpoint: http://127.0.0.1:3010/mcp
+# Server listens at http://localhost:3010/mcp
 ```
 
 ### Prerequisites
 
-- [Bun v1.4.0+](https://bun.sh/) or Node.js v24+ for running the package; Bun for development.
-- Network access to `api.ioda.inetintel.cc.gatech.edu`.
+- [Bun v1.4.0](https://bun.sh/) or higher (or Node.js v24+).
+- Outbound HTTPS to `api.ioda.inetintel.cc.gatech.edu`. No API key or account.
 
 ### Installation
 
+1. **Clone the repository:**
+
 ```sh
 git clone https://github.com/cyanheads/ioda-outages-mcp-server.git
+```
+
+2. **Navigate into the directory:**
+
+```sh
 cd ioda-outages-mcp-server
+```
+
+3. **Install dependencies:**
+
+```sh
 bun install
+```
+
+4. **Configure environment (optional):**
+
+```sh
 cp .env.example .env
-bun run rebuild
+# no server-specific variables; edit framework overrides as needed
 ```
 
 ## Configuration
 
-There are no server-specific environment variables. Common framework settings:
+The server has no settings of its own. The common framework variables:
 
 | Variable | Description | Default |
 |:---|:---|:---|
-| `MCP_TRANSPORT_TYPE` | `stdio` or `http` | `stdio` |
-| `MCP_HTTP_HOST` | HTTP bind address | `127.0.0.1` |
-| `MCP_HTTP_PORT` | HTTP port | `3010` |
-| `MCP_HTTP_ENDPOINT_PATH` | MCP endpoint path | `/mcp` |
-| `MCP_SESSION_MODE` | HTTP session posture | `stateless` |
-| `MCP_AUTH_MODE` | `none`, `jwt`, or `oauth` | `none` |
-| `MCP_LOG_LEVEL` | Minimum logging level | `info` |
-| `OTEL_ENABLED` | Enable OpenTelemetry | `false` |
+| `MCP_TRANSPORT_TYPE` | Transport: `stdio` or `http`. | `stdio` |
+| `MCP_HTTP_HOST` | HTTP bind address. | `127.0.0.1` |
+| `MCP_HTTP_PORT` | HTTP server port. | `3010` |
+| `MCP_HTTP_ENDPOINT_PATH` | MCP endpoint path. | `/mcp` |
+| `MCP_SESSION_MODE` | HTTP session mode: `stateless`, `stateful`, or `auto`. | `stateless` |
+| `MCP_AUTH_MODE` | Authentication: `none`, `jwt`, or `oauth`. | `none` |
+| `MCP_LOG_LEVEL` | Log level (`debug`, `info`, `warning`, `error`, etc.). | `info` |
+| `LOGS_DIR` | Directory for log files (Node.js only). | `<app-root>/logs` |
+| `OTEL_ENABLED` | Enable [OpenTelemetry](https://github.com/cyanheads/mcp-ts-core/tree/main/docs/telemetry). | `false` |
 
-See [`.env.example`](./.env.example) for framework overrides.
+See [`.env.example`](./.env.example) for the full list of framework overrides.
 
 ## Running the server
 
-```sh
-bun run rebuild
-bun run start:stdio
-# Or:
-bun run start:http
-```
+### Local development
 
-To serve HTTP in Docker:
+- **Build and run the production version**:
 
-```sh
-docker run --rm -p 127.0.0.1:3010:3010 -e MCP_TRANSPORT_TYPE=http ghcr.io/cyanheads/ioda-outages-mcp-server:latest
-```
+  ```sh
+  # One-time build
+  bun run rebuild
+
+  # Run the built server
+  bun run start:http
+  # or
+  bun run start:stdio
+  ```
+
+- **Run checks and tests**:
+  ```sh
+  bun run devcheck  # Lints, formats, type-checks, and more
+  bun run test      # Runs the test suite
+  ```
 
 ## Project structure
 
-| Path | Purpose |
+| Directory | Purpose |
 |:---|:---|
 | `src/index.ts` | Server identity, tool registration, service lifecycle |
-| `src/mcp-server/tools/definitions/` | Five read-only tools |
+| `src/mcp-server/tools/definitions/` | Six read-only tools |
 | `src/mcp-server/tools/ioda-common.ts` | Shared input normalization, rendering, response budgeting |
 | `src/services/ioda/` | Fixed-origin API client, schemas, pacing, status assessment |
 | `tests/` | Contract, service, and formatting tests |
@@ -204,21 +239,21 @@ docker run --rm -p 127.0.0.1:3010:3010 -e MCP_TRANSPORT_TYPE=http ghcr.io/cyanhe
 
 ## Development guide
 
-See [`CLAUDE.md`](./CLAUDE.md) for project conventions and [`docs/design.md`](./docs/design.md) for the API contract.
+See [`CLAUDE.md`](./CLAUDE.md) for development guidelines and architectural rules, and [`docs/design.md`](./docs/design.md) for the domain contracts. The short version:
 
-- Keep handlers small; framework catches thrown failures.
-- Validate external records without inventing absent fields.
-- Preserve all data on both client response surfaces and keep uncertainty visible.
-- Register definitions in the `createApp()` arrays in `src/index.ts`.
+- Handlers throw, framework catches — no `try/catch` in tool logic
+- Use `ctx.log` for logging, `ctx.signal` for cancellation, and `ctx.enrich` for applied inputs and notices
+- Register new tools in the `createApp()` arrays in `src/index.ts`
+- Wrap external API calls: validate raw → normalize to domain type → return output schema; never fabricate missing fields, and keep both response surfaces complete
+
+## Contributing
+
+Issues are welcome. Run checks and tests before submitting:
 
 ```sh
 bun run devcheck
 bun run test
 ```
-
-## Contributing
-
-Issues are welcome, with the tool name, inputs, and expected behavior. Redact credentials and personal information.
 
 ## License
 

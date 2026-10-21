@@ -25,12 +25,13 @@
 
 ## IODA patterns
 
-The five tool definitions in `src/mcp-server/tools/definitions/` are the source for real examples. `search-entities.tool.ts` demonstrates normalized identifier inputs and paged enrichment; `get-status.tool.ts` demonstrates bounded multi-component evidence.
+The six tool definitions in `src/mcp-server/tools/definitions/` are the source for real examples. `search-entities.tool.ts` demonstrates normalized identifier inputs and paged enrichment; `get-status.tool.ts` demonstrates bounded multi-component evidence.
 
 - Use `getIodaService()` from `@/services/ioda/index.js`. The service is initialized by `setup` and disposed by `teardown` in `src/index.ts`.
 - Capture one invocation clock and deadline. Use the shared `finish()` path in `ioda-common.ts` for schema validation, exact dual-surface budgeting, enrichment, and cancellation.
 - Keep `renderOutput` and `enrichmentTrailer` lossless. Both `content[]` and `structuredContent` must preserve every field, value, link, and line break.
 - Historical windows use Unix seconds UTC, at most 31 days. Pages start at 0; continue with unchanged filters and limit.
+- Entity types are `country`, `region`, `asn`, and `geoasn`. An optional `relatedToType` and `relatedToCode` scope lists `entityType` entities within one entity (`relatedScope()` in `ioda-common.ts`): both or neither, `entityType` required, no `entityCode`.
 - Numeric sources are `bgp`, `ping-slash24`, and `merit-nt`; event/alert filters also accept `gtr`. Do not substitute `ucsd-nt`.
 - Detections and measurement coverage are independent. Preserve nulls, stale/coarse observations, clipped boundaries, partial failures, original source scores, and attribution. Never infer healthy connectivity or a shutdown cause.
 - IODA is keyless with a fixed origin and no custom configuration schema. Framework environment settings remain available.
@@ -61,6 +62,7 @@ src/
       search-entities.tool.ts
       get-status.tool.ts
       find-outages.tool.ts
+      summarize-outages.tool.ts
       get-signals.tool.ts
       get-alerts.tool.ts
   services/ioda/

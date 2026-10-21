@@ -2,12 +2,13 @@
  * @fileoverview Sanitized IODA service errors and standalone recovery routes.
  * @module services/ioda/errors
  */
-import { type JsonRpcErrorCode, McpError } from '@cyanheads/mcp-ts-core/errors';
+import { JsonRpcErrorCode, McpError } from '@cyanheads/mcp-ts-core/errors';
 
 /** A literal calling tool, never caller-supplied text. */
 export type IodaTool =
   | 'ioda_search_entities'
   | 'ioda_find_outages'
+  | 'ioda_summarize_outages'
   | 'ioda_get_alerts'
   | 'ioda_get_signals'
   | 'ioda_get_status';
@@ -49,6 +50,8 @@ export function recoveryFor(reason: IodaReason, tool: IodaTool): string {
           return 'Call ioda_search_entities with a smaller limit and page 0, then continue with that fixed limit.';
         case 'ioda_find_outages':
           return 'Call ioda_find_outages with includeAlerts false, a smaller limit and page 0; retrieve transitions with ioda_get_alerts over narrower windows.';
+        case 'ioda_summarize_outages':
+          return 'Call ioda_summarize_outages with a smaller limit and page 0, then continue with that fixed limit.';
         case 'ioda_get_alerts':
           return 'Call ioda_get_alerts with a narrower window or smaller limit and page 0, then continue with that fixed limit.';
         case 'ioda_get_signals':
@@ -63,6 +66,10 @@ export function recoveryFor(reason: IodaReason, tool: IodaTool): string {
     case 'upstream_timeout':
       if (tool === 'ioda_search_entities')
         return 'Call ioda_search_entities with a smaller limit and page 0, or retry later after upstream collection timed out.';
+      if (tool === 'ioda_find_outages' || tool === 'ioda_get_alerts')
+        return `Call ${tool} with a narrower window, a smaller extendWindowSeconds, or an entityType filter, or retry later after upstream collection timed out.`;
+      if (tool === 'ioda_summarize_outages')
+        return 'Call ioda_summarize_outages with an entityCode or a relatedToType and relatedToCode scope, a narrower window, or a smaller extendWindowSeconds, or retry later after upstream collection timed out.';
       return `Call ${tool} with a narrower window or retry later after upstream collection timed out.`;
     case 'request_cancelled':
       return `Call ${tool} again only if the investigation is still needed.`;
@@ -84,4 +91,13 @@ export function iodaError(
     ...(extra.retryAfter !== undefined && { retryAfter: extra.retryAfter }),
     ...(extra.status !== undefined && { status: extra.status }),
   });
+}
+/** Caller cancellation, distinct from deadline and upstream timeouts. */
+export function cancelledError(tool: IodaTool): McpError {
+  return iodaError(
+    JsonRpcErrorCode.RequestCancelled,
+    'request_cancelled',
+    'IODA investigation cancelled.',
+    tool,
+  );
 }
