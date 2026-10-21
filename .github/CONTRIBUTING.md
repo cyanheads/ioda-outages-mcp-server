@@ -2,7 +2,10 @@
 
 Thanks for using `ioda-outages-mcp-server`. Bugs, feature requests, and documentation gaps all belong in an issue — that's where they get read and picked up.
 
-Open one from the **Issues** tab and pick the **Bug Report** or **Feature Request** form. Both are structured, and filling in the fields is what makes an issue actionable. Anything that fits neither can be a plain issue — a half-formed idea in your own words is fine.
+- [Report a bug](https://github.com/cyanheads/ioda-outages-mcp-server/issues/new?template=bug_report.yml)
+- [Request a feature](https://github.com/cyanheads/ioda-outages-mcp-server/issues/new?template=feature_request.yml)
+
+Both forms are structured, and filling in the fields is what makes an issue actionable. Anything that fits neither can be a plain issue — a half-formed idea in your own words is fine.
 
 ## Server bug or framework bug?
 
