@@ -61,6 +61,9 @@
     "streamable-http",
     "ioda",
     "internet-outages",
+    "internet-shutdowns",
+    "internet-measurement",
+    "bgp",
     "connectivity"
   ],
   "repository": {

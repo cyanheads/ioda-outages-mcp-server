@@ -11,7 +11,7 @@
   "homepage": "https://github.com/cyanheads/ioda-outages-mcp-server#readme",
   "repository": "https://github.com/cyanheads/ioda-outages-mcp-server",
   "license": "Apache-2.0",
-  "keywords": ["mcp", "mcp-server", "model-context-protocol", "typescript", "bun", "stdio", "streamable-http", "ioda", "internet-outages", "connectivity"],
+  "keywords": ["mcp", "mcp-server", "model-context-protocol", "typescript", "bun", "stdio", "streamable-http", "ioda", "internet-outages", "internet-shutdowns", "internet-measurement", "bgp", "connectivity"],
   "mcpServers": {
     "ioda-outages-mcp-server": {
       "command": "npx",
