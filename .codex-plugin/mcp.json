@@ -1,0 +1,9 @@
+{
+  "ioda-outages-mcp-server": {
+    "command": "npx",
+    "args": ["-y", "@cyanheads/ioda-outages-mcp-server"],
+    "env": {
+      "MCP_TRANSPORT_TYPE": "stdio"
+    }
+  }
+}
