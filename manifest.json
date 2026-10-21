@@ -3,11 +3,7 @@
   "name": "ioda-outages-mcp-server",
   "version": "0.1.0",
   "description": "Investigate Internet outages with IODA events, alerts, and connectivity signals via MCP. STDIO or Streamable HTTP.",
-  "author": {
-    "name": "cyanheads",
-    "email": "casey@caseyjhand.com",
-    "url": "https://caseyjhand.com"
-  },
+  "author": { "name": "cyanheads" },
   "repository": { "type": "git", "url": "https://github.com/cyanheads/ioda-outages-mcp-server" },
   "homepage": "https://github.com/cyanheads/ioda-outages-mcp-server#readme",
   "license": "Apache-2.0",

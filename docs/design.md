@@ -199,7 +199,7 @@ Unsupported enum values and schema-bound numeric ranges normally fail framework 
 
 ## Services, Config, and Boundaries
 
-One independently authored `IodaService` in `src/services/ioda/ioda-service.ts`, initialized during setup and accessed through `getIodaService()`, owns fixed-origin GET requests, endpoint query allowlists, encoding, pacing, envelope validation, and provenance. `schemas.ts` holds upstream/domain schemas shared by methods; `status.ts` holds the pure coverage/detection assessment plus bounded component orchestration. Tool definitions own input-edge semantics, errors, enrichment and output schemas. A small shared formatter earns reuse across all five tools; no generic repository/adapter layer.
+One independently authored `IodaService` in `src/services/ioda/ioda-service.ts`, initialized during setup and accessed through `getIodaService()`, owns endpoint query allowlists and bounded component orchestration. Its `api-client.ts` handles fixed-origin GET requests, encoding, pacing, envelope validation, and provenance. `schemas.ts` holds upstream/domain schemas shared by methods; `status.ts` holds the pure coverage/detection assessment. Tool definitions own input-edge semantics, errors, enrichment and output schemas. A small shared formatter earns reuse across all five tools; no generic repository/adapter layer.
 
 Methods: `searchEntities`, `getEvents`, `getAlerts`, `getNumericSignals`, `getStatusEvidence`. No upstream code is copied. No official SDK is required for these narrow HTTP reads. Numeric HTTP parsing and the status calculation are independently testable. Upstream names, conditions, attributes, levels, and retained extra fields are untrusted data, never instructions.
 

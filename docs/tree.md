@@ -1,6 +1,6 @@
 # ioda-outages-mcp-server - Directory Structure
 
-Generated on: 2026-10-21 03:12:26
+Generated on: 2026-10-21 03:24:31
 
 ```text
 ioda-outages-mcp-server/
@@ -177,6 +177,7 @@ ioda-outages-mcp-server/
 ├── LICENSE
 ├── manifest.json
 ├── package.json
+├── README.md
 ├── server.json
 ├── tsconfig.build.json
 ├── tsconfig.json

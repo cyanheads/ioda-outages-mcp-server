@@ -4,14 +4,14 @@
   "version": "0.1.0",
   "description": "Investigate Internet outages with IODA events, alerts, and connectivity signals via MCP. STDIO or Streamable HTTP.",
   "author": {
-    "name": "Casey Hand",
+    "name": "cyanheads",
     "email": "casey@caseyjhand.com",
-    "url": "https://caseyjhand.com"
+    "url": "https://github.com/cyanheads"
   },
   "homepage": "https://github.com/cyanheads/ioda-outages-mcp-server#readme",
   "repository": "https://github.com/cyanheads/ioda-outages-mcp-server",
   "license": "Apache-2.0",
-  "keywords": ["mcp", "mcp-server", "model-context-protocol", "ioda", "internet-outages", "connectivity"],
+  "keywords": ["mcp", "mcp-server", "model-context-protocol", "typescript", "bun", "stdio", "streamable-http", "ioda", "internet-outages", "connectivity"],
   "mcpServers": {
     "ioda-outages-mcp-server": {
       "command": "npx",

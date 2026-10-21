@@ -41,7 +41,6 @@ body:
       options:
         - Bun
         - Node.js
-        - Cloudflare Workers
     validations:
       required: true
 
@@ -60,7 +59,6 @@ body:
       options:
         - stdio
         - HTTP (Streamable HTTP)
-        - Worker (Cloudflare)
     validations:
       required: true
 
@@ -86,7 +84,7 @@ body:
       label: Steps to reproduce
       description: Exact inputs, tool calls, or sequence of actions to trigger the bug.
       placeholder: |
-        1. Call `tool_name` with input: `{ "key": "value" }`
+        1. Call `ioda_search_entities` with input: `{ "entityType": "country", "query": "Georgia" }`
         2. Observe error / wrong output
     validations:
       required: true
