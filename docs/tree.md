@@ -1,6 +1,6 @@
 # ioda-outages-mcp-server - Directory Structure
 
-Generated on: 2026-10-21 03:24:31
+Generated on: 2026-10-21 08:58:08
 
 ```text
 ioda-outages-mcp-server/
@@ -24,6 +24,8 @@ ioda-outages-mcp-server/
 │   ├── extensions.json
 │   └── settings.json
 ├── changelog/
+│   ├── 0.1.x/
+│   ├── 0.2.x/
 │   └── template.md
 ├── docs/
 │   └── design.md
@@ -140,7 +142,8 @@ ioda-outages-mcp-server/
 │   │       │   ├── get-alerts.tool.ts
 │   │       │   ├── get-signals.tool.ts
 │   │       │   ├── get-status.tool.ts
-│   │       │   └── search-entities.tool.ts
+│   │       │   ├── search-entities.tool.ts
+│   │       │   └── summarize-outages.tool.ts
 │   │       └── ioda-common.ts
 │   ├── services/
 │   │   └── ioda/
@@ -171,6 +174,7 @@ ioda-outages-mcp-server/
 ├── biome.json
 ├── bun.lock
 ├── bunfig.toml
+├── CHANGELOG.md
 ├── CLAUDE.md
 ├── devcheck.config.json
 ├── Dockerfile

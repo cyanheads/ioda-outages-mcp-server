@@ -6,14 +6,14 @@
     "url": "https://github.com/cyanheads/ioda-outages-mcp-server",
     "source": "github"
   },
-  "version": "0.1.1",
+  "version": "0.2.0",
   "packages": [
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "@cyanheads/ioda-outages-mcp-server",
       "runtimeHint": "npx",
-      "version": "0.1.1",
+      "version": "0.2.0",
       "environmentVariables": [
         {
           "name": "MCP_LOG_LEVEL",
@@ -32,7 +32,7 @@
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "@cyanheads/ioda-outages-mcp-server",
       "runtimeHint": "npx",
-      "version": "0.1.1",
+      "version": "0.2.0",
       "environmentVariables": [
         {
           "name": "MCP_TRANSPORT_TYPE",
