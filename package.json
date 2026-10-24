@@ -1,6 +1,6 @@
 {
   "name": "@cyanheads/ioda-outages-mcp-server",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "mcpName": "io.github.cyanheads/ioda-outages-mcp-server",
   "description": "Investigate Internet outages with IODA events, alerts, and connectivity signals via MCP. STDIO or Streamable HTTP.",
   "author": "Casey Hand <casey@caseyjhand.com> (https://caseyjhand.com)",
