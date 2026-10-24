@@ -2,7 +2,7 @@
 
 **Server:** ioda-outages-mcp-server
 **Version:** 0.2.0
-**Framework:** [@cyanheads/mcp-ts-core](https://www.npmjs.com/package/@cyanheads/mcp-ts-core) `^0.13.15`
+**Framework:** [@cyanheads/mcp-ts-core](https://www.npmjs.com/package/@cyanheads/mcp-ts-core) `^0.13.16`
 **Engines:** Bun ≥1.4.0, Node ≥24.0.0
 **MCP SDK:** `@modelcontextprotocol/server` ^2.3.1
 **Zod:** ^4.6.7
@@ -212,7 +212,7 @@ security: false                            # optional — true ONLY for a source
 
 ## Publishing
 
-**Every release goes through a release PR** — `git-wrapup`'s "Release PR mode", mode `straight-through`. Run `git-wrapup` then `release-and-publish`: open a `release/<version>` PR, read its checks, code-scanning alerts and bot comments, then fast-forward local `main` with `git merge --ff-only` before tagging and publishing. Never merge through the GitHub UI or `gh pr merge`; never rewrite pushed commits. Publish npm, MCP Registry, GHCR and a GitHub Release with the `.mcpb` bundle. No hosted endpoint or remote deployment is configured.
+**Every release goes through a release PR** — `git-wrapup`'s "Release PR mode", mode `straight-through`. Run `git-wrapup` then `release-and-publish`: open a `release/<version>` PR, read its checks, code-scanning alerts and bot comments, then fast-forward local `main` with `git merge --ff-only` before tagging and publishing. Never merge through the GitHub UI or `gh pr merge`; never rewrite pushed commits. Publish npm, MCP Registry, GHCR and a GitHub Release with the `.mcpb` bundle. The public hosted endpoint is https://ioda-outages.caseyjhand.com/mcp. After image publication, refresh the hosted container and verify its Docker health status.
 
 ---
 
