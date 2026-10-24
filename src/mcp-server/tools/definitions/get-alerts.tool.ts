@@ -20,8 +20,11 @@ import {
   entityFilter,
   filterInputs,
   finish,
+  ignoredMethods,
+  ignoreMethodsInput,
   invocationClock,
   pageInputs,
+  relatedMembershipNotice,
   relatedScope,
   renderOutput,
   SERVED_CAPS,
@@ -45,13 +48,14 @@ const Output = z.object({
 });
 export const getAlerts = tool('ioda_get_alerts', {
   description:
-    'Retrieve IODA detection and recovery transitions in an explicit Unix-second window of at most 31 days. Omit entity filters for global scope; a code requires entityType. relatedToType and relatedToCode limit results to entityType entities within one country, region, ASN, or geoasn, served at page 0 only. Each transition retains its source, level, condition, value and baseline; levels and baselines are not a source-independent severity scale. Missing transitions do not establish health. Pages are zero-based; keep filters and limit fixed.',
+    'Retrieve IODA detection and recovery transitions in an explicit Unix-second window of at most 31 days. Omit entity filters for global scope; a code requires entityType. relatedToType and relatedToCode limit results to entityType entities within one country, region, ASN, or geoasn, served at page 0 only. Each transition retains its source, level, condition, value and baseline; levels and baselines are not a source-independent severity scale. Transitions include both requested bounds, widened by extendWindowSeconds; adjacent windows can duplicate boundary detections. ignoreMethods excludes source.method, source.*, or *.method upstream. Missing transitions do not establish health. Pages are zero-based; keep filters and limit fixed.',
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: true },
   input: z.object({
     ...filterInputs,
     ...scopeInputs,
     ...windowInputs,
     ...pageInputs,
+    ignoreMethods: ignoreMethodsInput,
     extendWindowSeconds: z
       .number()
       .int()
@@ -67,17 +71,25 @@ export const getAlerts = tool('ioda_get_alerts', {
   enrichmentTrailer,
   errors: [
     {
+      reason: 'invalid_ignore_methods',
+      code: JsonRpcErrorCode.ValidationError,
+      thrownBy: 'service',
+      when: 'An explicit source is also excluded by its own source.* entry.',
+      recovery:
+        'Call ioda_get_alerts after removing the conflicting source.* entry from ignoreMethods or omitting source; keep the other filters unchanged.',
+    },
+    {
       reason: 'invalid_entity',
       code: JsonRpcErrorCode.ValidationError,
       thrownBy: 'service',
-      when: 'Invalid entity type, code, or incomplete pair.',
+      when: 'entityCode is incompatible with entityType, zero or out of range, or supplied without entityType.',
       recovery:
         'Call ioda_search_entities with entityType and query to resolve a country, region, ASN, or geoasn, then call ioda_get_alerts with the selected entityType and a returned code as entityCode.',
     },
     {
       reason: 'invalid_scope',
       code: JsonRpcErrorCode.ValidationError,
-      when: 'relatedToType and relatedToCode are incomplete, unsupported, or malformed, a scope lacks entityType or comes with entityCode, or a scope asks for a page above 0.',
+      when: 'relatedToType and relatedToCode are incomplete or incompatible, the code is zero or out of range, a scope lacks entityType or comes with entityCode, or a scope asks for a page above 0.',
       recovery:
         'Call ioda_get_alerts at page 0 with entityType, both relatedToType and relatedToCode (country, region, asn, or geoasn and its code), and no entityCode, or omit both scope fields; resolve the scope code with ioda_search_entities.',
     },
@@ -87,15 +99,7 @@ export const getAlerts = tool('ioda_get_alerts', {
       thrownBy: 'service',
       when: 'Reversed, future, millisecond, or over-31-day window.',
       recovery:
-        'Call ioda_get_alerts with integer Unix seconds from < until <= now and a window no longer than 31 days; split longer investigations into adjacent windows.',
-    },
-    {
-      reason: 'invalid_source',
-      code: JsonRpcErrorCode.ValidationError,
-      thrownBy: 'service',
-      when: 'source is not bgp, ping-slash24, merit-nt, or gtr.',
-      recovery:
-        'Call ioda_get_alerts with source bgp, ping-slash24, merit-nt, or gtr, or omit source to search all sources.',
+        'Call ioda_get_alerts with integer Unix seconds from < until <= now and a window no longer than 31 days; split longer investigations into adjacent windows; shared boundaries can duplicate detections.',
     },
     {
       reason: 'upstream_bad_request',
@@ -168,6 +172,7 @@ export const getAlerts = tool('ioda_get_alerts', {
     const { now, deadline } = invocationClock();
     validateWindow(input, now);
     const source = sourceFilter(input.source);
+    const ignoreMethods = ignoredMethods(input.ignoreMethods, source);
     const limit = clampLimit(input.limit, input.page);
     const extend = clampExtendWindow(input.extendWindowSeconds, 'ioda_get_alerts', input, now);
     const filter = entityFilter(input);
@@ -183,6 +188,7 @@ export const getAlerts = tool('ioda_get_alerts', {
       ...scope,
       from: input.from,
       until: input.until,
+      ...(ignoreMethods && { ignoreMethods }),
       ...(source && { source }),
       extendWindowSeconds: extend.value,
       limit: limit.value,
@@ -201,6 +207,7 @@ export const getAlerts = tool('ioda_get_alerts', {
         [
           limit.notice,
           extend.notice,
+          relatedMembershipNotice('ioda_get_alerts', request),
           !result.alerts.length &&
             (input.page > 0
               ? emptyPageNotice('ioda_get_alerts')

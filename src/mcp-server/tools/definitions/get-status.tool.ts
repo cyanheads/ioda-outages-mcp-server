@@ -46,7 +46,7 @@ export const getStatus = tool('ioda_get_status', {
       reason: 'invalid_entity',
       code: JsonRpcErrorCode.ValidationError,
       thrownBy: 'service',
-      when: 'Invalid entity type, code, or incomplete pair.',
+      when: 'entityCode is incompatible with entityType, zero or out of range.',
       recovery:
         'Call ioda_search_entities with entityType and query to resolve a country, region, ASN, or geoasn, then call ioda_get_status with the selected entityType and a returned code as entityCode.',
     },

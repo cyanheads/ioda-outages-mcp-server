@@ -1,0 +1,6874 @@
+{
+  "issue-11/probe-summary-1792723200": [
+    {
+      "scores": {
+        "ping-slash24.median": 0,
+        "overall": 0
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "1837",
+        "name": "Markazi",
+        "subnames": [],
+        "type": "region",
+        "attrs": {
+          "fqid": "geo.netacuity.AS.IR.1837",
+          "country_code": "IR",
+          "country_name": "Iran (Islamic Republic Of)",
+          "ne_region_id": "3231"
+        }
+      }
+    }
+  ],
+  "issue-11/probe-events-1792723199": [],
+  "issue-11/probe-summary-1792723201": [
+    {
+      "scores": {
+        "ping-slash24.median": 0.37296037296037293,
+        "overall": 0.37296037296037293
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "1837",
+        "name": "Markazi",
+        "subnames": [],
+        "type": "region",
+        "attrs": {
+          "fqid": "geo.netacuity.AS.IR.1837",
+          "country_code": "IR",
+          "country_name": "Iran (Islamic Republic Of)",
+          "ne_region_id": "3231"
+        }
+      }
+    }
+  ],
+  "issue-11/probe-alerts-1792723199": [],
+  "issue-11/probe-raw-1792723199": [
+    [
+      {
+        "entityType": "region",
+        "entityCode": "1837",
+        "entityName": "Markazi",
+        "entityFqid": "geo.provider.AS.IR.1837",
+        "datasource": "ping-slash24",
+        "subtype": "",
+        "from": 1792722600,
+        "until": 1792723200,
+        "step": 600,
+        "nativeStep": 600,
+        "values": [234]
+      }
+    ]
+  ],
+  "issue-11/probe-summary-1792723199": [],
+  "issue-11/probe-events-1792723200": [
+    {
+      "entity": {
+        "code": "1837",
+        "name": "Markazi",
+        "subnames": [],
+        "type": "region",
+        "attrs": {
+          "fqid": "geo.netacuity.AS.IR.1837",
+          "country_code": "IR",
+          "country_name": "Iran (Islamic Republic Of)",
+          "ne_region_id": "3231"
+        }
+      },
+      "from": 1792723200,
+      "until": 1792723200,
+      "score": 0,
+      "datasource": "ping-slash24",
+      "method": "median"
+    }
+  ],
+  "issue-11/probe-events-1792723201": [
+    {
+      "entity": {
+        "code": "1837",
+        "name": "Markazi",
+        "subnames": [],
+        "type": "region",
+        "attrs": {
+          "fqid": "geo.netacuity.AS.IR.1837",
+          "country_code": "IR",
+          "country_name": "Iran (Islamic Republic Of)",
+          "ne_region_id": "3231"
+        }
+      },
+      "from": 1792723200,
+      "until": 1792723201,
+      "score": 0.37296037296037293,
+      "datasource": "ping-slash24",
+      "method": "median"
+    }
+  ],
+  "issue-11/probe-alerts-1792723200": [
+    {
+      "datasource": "ping-slash24",
+      "entity": {
+        "code": "1837",
+        "name": "Markazi",
+        "subnames": [],
+        "type": "region",
+        "attrs": {
+          "fqid": "geo.netacuity.AS.IR.1837",
+          "country_code": "IR",
+          "country_name": "Iran (Islamic Republic Of)",
+          "ne_region_id": "3231"
+        }
+      },
+      "time": 1792723200,
+      "level": "critical",
+      "condition": "< 0.8",
+      "value": 222,
+      "historyValue": 286,
+      "method": "median"
+    }
+  ],
+  "issue-11/probe-raw-1792723201": [
+    [
+      {
+        "entityType": "region",
+        "entityCode": "1837",
+        "entityName": "Markazi",
+        "entityFqid": "geo.provider.AS.IR.1837",
+        "datasource": "ping-slash24",
+        "subtype": "",
+        "from": 1792722600,
+        "until": 1792723800,
+        "step": 600,
+        "nativeStep": 600,
+        "values": [234, 222]
+      }
+    ]
+  ],
+  "issue-11/probe-raw-1792723200": [
+    [
+      {
+        "entityType": "region",
+        "entityCode": "1837",
+        "entityName": "Markazi",
+        "entityFqid": "geo.provider.AS.IR.1837",
+        "datasource": "ping-slash24",
+        "subtype": "",
+        "from": 1792722600,
+        "until": 1792723200,
+        "step": 600,
+        "nativeStep": 600,
+        "values": [234]
+      }
+    ]
+  ],
+  "issue-11/probe-alerts-1792723201": [
+    {
+      "datasource": "ping-slash24",
+      "entity": {
+        "code": "1837",
+        "name": "Markazi",
+        "subnames": [],
+        "type": "region",
+        "attrs": {
+          "fqid": "geo.netacuity.AS.IR.1837",
+          "country_code": "IR",
+          "country_name": "Iran (Islamic Republic Of)",
+          "ne_region_id": "3231"
+        }
+      },
+      "time": 1792723200,
+      "level": "critical",
+      "condition": "< 0.8",
+      "value": 222,
+      "historyValue": 286,
+      "method": "median"
+    }
+  ],
+  "issue-13/probe-member-summary": [
+    {
+      "scores": {
+        "merit-nt.median": 29020,
+        "overall": 29020
+      },
+      "event_cnt": 5,
+      "entity": {
+        "code": "10680",
+        "name": "AS10680 (IU-RESEARCH)",
+        "subnames": [],
+        "type": "asn",
+        "attrs": {
+          "ip_count": "10240",
+          "name": "IU-RESEARCH",
+          "fqid": "asn.10680",
+          "org": "Indiana University"
+        }
+      }
+    }
+  ],
+  "issue-13/probe-member": [
+    {
+      "code": "10680",
+      "name": "AS10680 (IU-RESEARCH)",
+      "type": "asn",
+      "subnames": [],
+      "attrs": {
+        "ip_count": "10240",
+        "name": "IU-RESEARCH",
+        "fqid": "asn.10680",
+        "org": "Indiana University"
+      }
+    }
+  ],
+  "issue-13/probe-scope-summary": [
+    {
+      "scores": {
+        "bgp.median": 23500,
+        "overall": 23500
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "30567",
+        "name": "AS30567 (IGNITE-BROADBAND)",
+        "type": "asn",
+        "subnames": [],
+        "attrs": {
+          "fqid": "asn.30567",
+          "ip_count": "40960",
+          "name": "IGNITE-BROADBAND",
+          "org": "Dickson Electric System"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 22787.878787878788,
+        "overall": 22787.878787878788
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "5671",
+        "name": "AS5671 (PBI-NET-BLK)",
+        "type": "asn",
+        "subnames": [],
+        "attrs": {
+          "ip_count": "8448",
+          "name": "PBI-NET-BLK",
+          "org": "AT&T Enterprises, LLC",
+          "fqid": "asn.5671"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 10000,
+        "overall": 10000
+      },
+      "event_cnt": 9,
+      "entity": {
+        "code": "63213",
+        "name": "AS63213 (ASTUTEHOSTING-VALUE)",
+        "type": "asn",
+        "subnames": [],
+        "attrs": {
+          "fqid": "asn.63213",
+          "ip_count": "5632",
+          "name": "ASTUTEHOSTING-VALUE",
+          "org": "Astute Internet"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 4869.863013698629,
+        "overall": 4869.863013698629
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "984",
+        "name": "AS984 (OWS)",
+        "type": "asn",
+        "subnames": [],
+        "attrs": {
+          "name": "OWS-NETWORK",
+          "org": "OCTOPUS WEB SOLUTION INC",
+          "fqid": "asn.984",
+          "ip_count": "149504"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 2937.4999999999995,
+        "overall": 2937.4999999999995
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "28723",
+        "name": "AS28723 (NOKIA-India)",
+        "type": "asn",
+        "subnames": [],
+        "attrs": {
+          "fqid": "asn.28723",
+          "name": "NOKIA-India",
+          "org": "Nokia Oyj",
+          "ip_count": "6144"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 2775.6000000000004,
+        "overall": 2775.6000000000004
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "203",
+        "name": "AS203 (CENTURYLINK-LEGACY-LVLT-203)",
+        "type": "asn",
+        "subnames": [],
+        "attrs": {
+          "org": "Level 3 Parent, LLC",
+          "fqid": "asn.203",
+          "ip_count": "320992",
+          "name": "CENTURYLINK-LEGACY-LVLT-203"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 2437.5,
+        "overall": 2437.5
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "23117",
+        "name": "AS23117 (ICOE-NETWORK)",
+        "type": "asn",
+        "subnames": [],
+        "attrs": {
+          "fqid": "asn.23117",
+          "ip_count": "10240",
+          "name": "ICOE-NETWORK",
+          "org": "Imperial County Office of Education"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 2015.4968094804012,
+        "overall": 2015.4968094804012
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "2386",
+        "name": "AS2386 (INS-AS)",
+        "type": "asn",
+        "subnames": [],
+        "attrs": {
+          "fqid": "asn.2386",
+          "ip_count": "280576",
+          "name": "INS-AS",
+          "org": "AT&T Enterprises, LLC"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1829.7055057618438,
+        "overall": 1829.7055057618438
+      },
+      "event_cnt": 2,
+      "entity": {
+        "code": "5371",
+        "name": "AS5371 (DNIC-ASBLK-05120-05376)",
+        "type": "asn",
+        "subnames": [],
+        "attrs": {
+          "fqid": "asn.5371",
+          "ip_count": "194560",
+          "name": "DNIC-ASBLK-05120-05376",
+          "org": "United States Department of Defense (DoD)"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1235.2941176470588,
+        "overall": 1235.2941176470588
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "62943",
+        "name": "AS62943 (AS62943-BLUEBIRD-NETWORK)",
+        "type": "asn",
+        "subnames": [],
+        "attrs": {
+          "name": "AS62943-BLUEBIRD-NETWORK",
+          "org": "Missouri Network Alliance, LLC",
+          "fqid": "asn.62943",
+          "ip_count": "73984"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 995.9677419354839,
+        "overall": 995.9677419354839
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "54113",
+        "name": "AS54113 (FASTLY)",
+        "type": "asn",
+        "subnames": [],
+        "attrs": {
+          "org": "Fastly, Inc.",
+          "fqid": "asn.54113",
+          "ip_count": "380928",
+          "name": "FASTLY"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 793.8144329896907,
+        "overall": 793.8144329896907
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "21737",
+        "name": "AS21737 (SPRINGNET2-NET)",
+        "type": "asn",
+        "subnames": [],
+        "attrs": {
+          "org": "SpringNet",
+          "ip_count": "24832",
+          "fqid": "asn.21737",
+          "name": "SPRINGNET2-NET"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 500,
+        "overall": 500
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "3477",
+        "name": "AS3477 (NOAA-NWAVE)",
+        "type": "asn",
+        "subnames": [],
+        "attrs": {
+          "ip_count": "324608",
+          "name": "NOAA-NWAVE",
+          "org": "National Oceanic and Atmospheric Administration",
+          "fqid": "asn.3477"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 363.6363636363636,
+        "overall": 363.6363636363636
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "30436",
+        "name": "AS30436 (ELITE-BROADBAND)",
+        "type": "asn",
+        "subnames": [],
+        "attrs": {
+          "fqid": "asn.30436",
+          "name": "ELITE-BROADBAND",
+          "org": "Elite Broadband LLC",
+          "ip_count": "8448"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 300.03894080996884,
+        "overall": 300.03894080996884
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "22561",
+        "name": "AS22561 (CENTURYLINK-LEGACY-LIGHTCORE)",
+        "type": "asn",
+        "subnames": [],
+        "attrs": {
+          "ip_count": "1314816",
+          "name": "CENTURYLINK-LEGACY-LIGHTCORE",
+          "org": "CenturyLink Communications, LLC",
+          "fqid": "asn.22561"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 197.36842105263156,
+        "overall": 197.36842105263156
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "33619",
+        "name": "AS33619 (AMD-MARKHAM)",
+        "type": "asn",
+        "subnames": [],
+        "attrs": {
+          "fqid": "asn.33619",
+          "ip_count": "19456",
+          "name": "AMD-MARKHAM",
+          "org": "Advanced Micro Devices, Inc."
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 196.42857142857142,
+        "overall": 196.42857142857142
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "54119",
+        "name": "AS54119 (WHITESKY-COMMUNICATIONS-2)",
+        "type": "asn",
+        "subnames": [],
+        "attrs": {
+          "ip_count": "14080",
+          "org": "WhiteSky Communications, LLC.",
+          "fqid": "asn.54119",
+          "name": "WHITESKY-COMMUNICATIONS-2"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 136.36363636363637,
+        "overall": 136.36363636363637
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "46506",
+        "name": "AS46506 (SIMPLEHELIX)",
+        "type": "asn",
+        "subnames": [],
+        "attrs": {
+          "fqid": "asn.46506",
+          "name": "SIMPLEHELIX",
+          "org": "SimpleHelix.com",
+          "ip_count": "8448"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 136.36363636363635,
+        "overall": 136.36363636363635
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "36454",
+        "name": "AS36454 (CL-794)",
+        "type": "asn",
+        "subnames": [],
+        "attrs": {
+          "fqid": "asn.36454",
+          "name": "WHG-DAL",
+          "org": "WHG Hosting Services Ltd",
+          "ip_count": "14080"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 111.84210526315789,
+        "overall": 111.84210526315789
+      },
+      "event_cnt": 3,
+      "entity": {
+        "code": "647",
+        "name": "AS647 (DNIC-ASBLK-00616-00665)",
+        "type": "asn",
+        "subnames": [],
+        "attrs": {
+          "fqid": "asn.647",
+          "name": "DNIC-ASBLK-00616-00665",
+          "org": "United States Department of Defense (DoD)",
+          "ip_count": "341760"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 60,
+        "overall": 60
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "36776",
+        "name": "AS36776 (FIVE9)",
+        "type": "asn",
+        "subnames": [],
+        "attrs": {
+          "org": "Five9 Inc.",
+          "fqid": "asn.36776",
+          "ip_count": "12800",
+          "name": "FIVE9"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 36.58536585365854,
+        "overall": 36.58536585365854
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "16491",
+        "name": "AS16491 (VIASAT)",
+        "type": "asn",
+        "subnames": [],
+        "attrs": {
+          "fqid": "asn.16491",
+          "ip_count": "10496",
+          "name": "VIASAT",
+          "org": "ViaSat, Inc."
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 32.786885245901644,
+        "overall": 32.786885245901644
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "63473",
+        "name": "AS63473 (HOSTHATCH)",
+        "type": "asn",
+        "subnames": [],
+        "attrs": {
+          "ip_count": "26624",
+          "fqid": "asn.63473",
+          "name": "HOSTHATCH",
+          "org": "HostHatch, LLC"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 22.55639097744361,
+        "overall": 22.55639097744361
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "21713",
+        "name": "AS21713 (BULLOCH)",
+        "type": "asn",
+        "subnames": [],
+        "attrs": {
+          "fqid": "asn.21713",
+          "ip_count": "34048",
+          "name": "BULLOCH",
+          "org": "Bulloch County Rural Telephone Cooperative, Inc."
+        }
+      }
+    }
+  ],
+  "issue-15/probe-default-STAR.median": [
+    {
+      "scores": {
+        "gtr.sarima": 827416.0941834522,
+        "overall": 827416.0941834522
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "LT",
+        "name": "Lithuania",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.EU.LT"
+        }
+      }
+    },
+    {
+      "scores": {
+        "gtr.sarima": 10770.279106227896,
+        "overall": 10770.279106227896
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "PM",
+        "name": "St. Pierre And Miquelon",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.PM"
+        }
+      }
+    },
+    {
+      "scores": {
+        "gtr.sarima": 4636.10048077868,
+        "overall": 4636.10048077868
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "HT",
+        "name": "Haiti",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.HT"
+        }
+      }
+    }
+  ],
+  "issue-15/probe-alerts-gtr.STAR": [
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "SS",
+        "name": "South Sudan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.SS"
+        }
+      },
+      "time": 1792717500,
+      "level": "normal",
+      "condition": "normal",
+      "value": 114,
+      "historyValue": 114,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "SS",
+        "name": "South Sudan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.SS"
+        }
+      },
+      "time": 1792717800,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 112,
+      "historyValue": 114,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "CV",
+        "name": "Cape Verde",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.CV"
+        }
+      },
+      "time": 1792719000,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 195,
+      "historyValue": 199,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "SZ",
+        "name": "Swaziland",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.SZ"
+        }
+      },
+      "time": 1792721700,
+      "level": "normal",
+      "condition": "normal",
+      "value": 270,
+      "historyValue": 270,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "SS",
+        "name": "South Sudan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.SS"
+        }
+      },
+      "time": 1792726500,
+      "level": "normal",
+      "condition": "normal",
+      "value": 114,
+      "historyValue": 114,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "MW",
+        "name": "Malawi",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.MW"
+        }
+      },
+      "time": 1792726800,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 920,
+      "historyValue": 958,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "SS",
+        "name": "South Sudan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.SS"
+        }
+      },
+      "time": 1792727100,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 112,
+      "historyValue": 114,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "VE",
+        "name": "Venezuela",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.SA.VE"
+        }
+      },
+      "time": 1792728300,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 20281,
+      "historyValue": 25490,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "SS",
+        "name": "South Sudan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.SS"
+        }
+      },
+      "time": 1792728600,
+      "level": "normal",
+      "condition": "normal",
+      "value": 114,
+      "historyValue": 114,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "VE",
+        "name": "Venezuela",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.SA.VE"
+        }
+      },
+      "time": 1792729800,
+      "level": "normal",
+      "condition": "normal",
+      "value": 25490,
+      "historyValue": 25490,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "KH",
+        "name": "Cambodia",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AS.KH"
+        }
+      },
+      "time": 1792734300,
+      "level": "normal",
+      "condition": "normal",
+      "value": 1784,
+      "historyValue": 1784,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "MW",
+        "name": "Malawi",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.MW"
+        }
+      },
+      "time": 1792734300,
+      "level": "normal",
+      "condition": "normal",
+      "value": 953,
+      "historyValue": 958,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "ET",
+        "name": "Ethiopia",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.ET"
+        }
+      },
+      "time": 1792740000,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 4391,
+      "historyValue": 4647,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "CV",
+        "name": "Cape Verde",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.CV"
+        }
+      },
+      "time": 1792741200,
+      "level": "normal",
+      "condition": "normal",
+      "value": 199,
+      "historyValue": 199,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "ET",
+        "name": "Ethiopia",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.ET"
+        }
+      },
+      "time": 1792741800,
+      "level": "normal",
+      "condition": "normal",
+      "value": 4647,
+      "historyValue": 4647,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "NG",
+        "name": "Nigeria",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.NG"
+        }
+      },
+      "time": 1792743000,
+      "level": "normal",
+      "condition": "normal",
+      "value": 9822,
+      "historyValue": 9887,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "CF",
+        "name": "Central African Republic",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.CF"
+        }
+      },
+      "time": 1792748700,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 50,
+      "historyValue": 54,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "NG",
+        "name": "Nigeria",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.NG"
+        }
+      },
+      "time": 1792750800,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 9757,
+      "historyValue": 9887,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "CF",
+        "name": "Central African Republic",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.CF"
+        }
+      },
+      "time": 1792751100,
+      "level": "normal",
+      "condition": "normal",
+      "value": 54,
+      "historyValue": 54,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "NG",
+        "name": "Nigeria",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.NG"
+        }
+      },
+      "time": 1792757400,
+      "level": "normal",
+      "condition": "normal",
+      "value": 9822,
+      "historyValue": 9887,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "BL",
+        "name": "Saint Barthelemy",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.BL"
+        }
+      },
+      "time": 1792758600,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 27,
+      "historyValue": 29,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "SS",
+        "name": "South Sudan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.SS"
+        }
+      },
+      "time": 1792760700,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 112,
+      "historyValue": 114,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "BL",
+        "name": "Saint Barthelemy",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.BL"
+        }
+      },
+      "time": 1792760700,
+      "level": "normal",
+      "condition": "normal",
+      "value": 29,
+      "historyValue": 29,
+      "method": "median"
+    },
+    {
+      "datasource": "ping-slash24",
+      "entity": {
+        "code": "VI",
+        "name": "Us Virgin Islands",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.VI"
+        }
+      },
+      "time": 1792761000,
+      "level": "critical",
+      "condition": "< 0.8",
+      "value": 112,
+      "historyValue": 142,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "CV",
+        "name": "Cape Verde",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.CV"
+        }
+      },
+      "time": 1792761000,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 196,
+      "historyValue": 199,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "GL",
+        "name": "Greenland",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.GL"
+        }
+      },
+      "time": 1792766100,
+      "level": "normal",
+      "condition": "normal",
+      "value": 177,
+      "historyValue": 177,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "NG",
+        "name": "Nigeria",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.NG"
+        }
+      },
+      "time": 1792766400,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 9758,
+      "historyValue": 9887,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "SS",
+        "name": "South Sudan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.SS"
+        }
+      },
+      "time": 1792767000,
+      "level": "normal",
+      "condition": "normal",
+      "value": 114,
+      "historyValue": 114,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "NG",
+        "name": "Nigeria",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.NG"
+        }
+      },
+      "time": 1792768500,
+      "level": "normal",
+      "condition": "normal",
+      "value": 9825,
+      "historyValue": 9887,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "NG",
+        "name": "Nigeria",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.NG"
+        }
+      },
+      "time": 1792770300,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 9761,
+      "historyValue": 9887,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "NG",
+        "name": "Nigeria",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.NG"
+        }
+      },
+      "time": 1792771200,
+      "level": "normal",
+      "condition": "normal",
+      "value": 9825,
+      "historyValue": 9887,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "AQ",
+        "name": "Antarctica",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AN.AQ"
+        }
+      },
+      "time": 1792771200,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 30,
+      "historyValue": 31,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "ER",
+        "name": "Eritrea",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.ER"
+        }
+      },
+      "time": 1792771200,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 53,
+      "historyValue": 54,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "FK",
+        "name": "Falkland Islands (Malvinas)",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.SA.FK"
+        }
+      },
+      "time": 1792771200,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 24,
+      "historyValue": 25,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "NF",
+        "name": "Norfolk Island",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.OC.NF"
+        }
+      },
+      "time": 1792771200,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 26,
+      "historyValue": 27,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "NU",
+        "name": "Niue",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.OC.NU"
+        }
+      },
+      "time": 1792771200,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 27,
+      "historyValue": 28,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "NR",
+        "name": "Nauru",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.OC.NR"
+        }
+      },
+      "time": 1792771200,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 70,
+      "historyValue": 71,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "VE",
+        "name": "Venezuela",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.SA.VE"
+        }
+      },
+      "time": 1792776000,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 25234,
+      "historyValue": 25490,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "VE",
+        "name": "Venezuela",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.SA.VE"
+        }
+      },
+      "time": 1792778100,
+      "level": "normal",
+      "condition": "normal",
+      "value": 25490,
+      "historyValue": 25490,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "KP",
+        "name": "North Korea",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AS.KP"
+        }
+      },
+      "time": 1792779300,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 18,
+      "historyValue": 22,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "KP",
+        "name": "North Korea",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AS.KP"
+        }
+      },
+      "time": 1792780200,
+      "level": "normal",
+      "condition": "normal",
+      "value": 22,
+      "historyValue": 22,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "TJ",
+        "name": "Tajikistan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AS.TJ"
+        }
+      },
+      "time": 1792783200,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 362,
+      "historyValue": 368,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "TJ",
+        "name": "Tajikistan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AS.TJ"
+        }
+      },
+      "time": 1792786500,
+      "level": "normal",
+      "condition": "normal",
+      "value": 368,
+      "historyValue": 368,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "SS",
+        "name": "South Sudan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.SS"
+        }
+      },
+      "time": 1792789800,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 111,
+      "historyValue": 114,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "NG",
+        "name": "Nigeria",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.NG"
+        }
+      },
+      "time": 1792796700,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 9755,
+      "historyValue": 9887,
+      "method": "median"
+    },
+    {
+      "datasource": "ping-slash24",
+      "entity": {
+        "code": "VI",
+        "name": "Us Virgin Islands",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.VI"
+        }
+      },
+      "time": 1792798800,
+      "level": "normal",
+      "condition": "normal",
+      "value": 117,
+      "historyValue": 142,
+      "method": "median"
+    }
+  ],
+  "issue-15/probe-alerts-STAR.median": [
+    {
+      "datasource": "gtr",
+      "entity": {
+        "code": "HT",
+        "name": "Haiti",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.HT"
+        }
+      },
+      "time": 1792715400,
+      "level": "critical",
+      "condition": "< 0.8",
+      "value": 2155,
+      "historyValue": 2602,
+      "method": "sarima"
+    },
+    {
+      "datasource": "gtr",
+      "entity": {
+        "code": "HT",
+        "name": "Haiti",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.HT"
+        }
+      },
+      "time": 1792731600,
+      "level": "normal",
+      "condition": "normal",
+      "value": 606,
+      "historyValue": 856,
+      "method": "sarima"
+    },
+    {
+      "datasource": "gtr",
+      "entity": {
+        "code": "PM",
+        "name": "St. Pierre And Miquelon",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.PM"
+        }
+      },
+      "time": 1792742400,
+      "level": "critical",
+      "condition": "< 0.8",
+      "value": 150,
+      "historyValue": 375,
+      "method": "sarima"
+    },
+    {
+      "datasource": "gtr",
+      "entity": {
+        "code": "PM",
+        "name": "St. Pierre And Miquelon",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.PM"
+        }
+      },
+      "time": 1792753200,
+      "level": "normal",
+      "condition": "normal",
+      "value": 841,
+      "historyValue": 989,
+      "method": "sarima"
+    }
+  ],
+  "issue-15/probe-default-None": [
+    {
+      "scores": {
+        "gtr.sarima": 827416.0941834522,
+        "overall": 827416.0941834522
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "LT",
+        "name": "Lithuania",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.EU.LT"
+        }
+      }
+    },
+    {
+      "scores": {
+        "ping-slash24.median": 189542.77286135696,
+        "overall": 189542.77286135696
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "GU",
+        "name": "Guam",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.OC.GU"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 20541.95804195804,
+        "overall": 20541.95804195804
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "BB",
+        "name": "Barbados",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.BB"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 16405.228758169935,
+        "overall": 16405.228758169935
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "BI",
+        "name": "Burundi",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.BI"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 16344.827586206895,
+        "overall": 16344.827586206895
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "AI",
+        "name": "Anguilla",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.AI"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 15047.619047619046,
+        "overall": 15047.619047619046
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "CK",
+        "name": "Cook Islands",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.OC.CK"
+        }
+      }
+    },
+    {
+      "scores": {
+        "ping-slash24.median": 13309.859154929576,
+        "overall": 13309.859154929576
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "VI",
+        "name": "Us Virgin Islands",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.VI"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 12000,
+        "overall": 12000
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "FM",
+        "name": "Federated States Of Micronesia",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.OC.FM"
+        }
+      }
+    },
+    {
+      "scores": {
+        "gtr.sarima": 10770.279106227896,
+        "overall": 10770.279106227896
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "PM",
+        "name": "St. Pierre And Miquelon",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.PM"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 10476.190476190475,
+        "overall": 10476.190476190475
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "KM",
+        "name": "Comoros",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.KM"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 9234.805421950154,
+        "overall": 9234.805421950154
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "KW",
+        "name": "Kuwait",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AS.KW"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 7822.033898305084,
+        "overall": 7822.033898305084
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "PW",
+        "name": "Palau",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.OC.PW"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 6451.977401129943,
+        "overall": 6451.977401129943
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "GL",
+        "name": "Greenland",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.GL"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 5710.843373493976,
+        "overall": 5710.843373493976
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "LC",
+        "name": "Saint Lucia",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.LC"
+        }
+      }
+    },
+    {
+      "scores": {
+        "gtr.sarima": 4636.10048077868,
+        "overall": 4636.10048077868
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "HT",
+        "name": "Haiti",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.HT"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 4221.59090909091,
+        "overall": 4221.59090909091
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "TD",
+        "name": "Chad",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.TD"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1920,
+        "overall": 1920
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "FK",
+        "name": "Falkland Islands (Malvinas)",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.SA.FK"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1777.7777777777776,
+        "overall": 1777.7777777777776
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "NF",
+        "name": "Norfolk Island",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.OC.NF"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1728.0701754385964,
+        "overall": 1728.0701754385964
+      },
+      "event_cnt": 5,
+      "entity": {
+        "code": "SS",
+        "name": "South Sudan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.SS"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1723.6180904522612,
+        "overall": 1723.6180904522612
+      },
+      "event_cnt": 2,
+      "entity": {
+        "code": "CV",
+        "name": "Cape Verde",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.CV"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1714.2857142857142,
+        "overall": 1714.2857142857142
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "NU",
+        "name": "Niue",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.OC.NU"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1548.3870967741934,
+        "overall": 1548.3870967741934
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "AQ",
+        "name": "Antarctica",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AN.AQ"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1271.7204409831093,
+        "overall": 1271.7204409831093
+      },
+      "event_cnt": 5,
+      "entity": {
+        "code": "NG",
+        "name": "Nigeria",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.NG"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 888.8888888888888,
+        "overall": 888.8888888888888
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "ER",
+        "name": "Eritrea",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.ER"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 676.0563380281691,
+        "overall": 676.0563380281691
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "NR",
+        "name": "Nauru",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.OC.NR"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 637.0370370370371,
+        "overall": 637.0370370370371
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "SZ",
+        "name": "Swaziland",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.SZ"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 546.0376618281679,
+        "overall": 546.0376618281679
+      },
+      "event_cnt": 2,
+      "entity": {
+        "code": "VE",
+        "name": "Venezuela",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.SA.VE"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 519.6188340807175,
+        "overall": 519.6188340807175
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "KH",
+        "name": "Cambodia",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AS.KH"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 495.8246346555324,
+        "overall": 495.8246346555324
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "MW",
+        "name": "Malawi",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.MW"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 296.29629629629625,
+        "overall": 296.29629629629625
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "CF",
+        "name": "Central African Republic",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.CF"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 272.72727272727275,
+        "overall": 272.72727272727275
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "KP",
+        "name": "North Korea",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AS.KP"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 241.37931034482756,
+        "overall": 241.37931034482756
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "BL",
+        "name": "Saint Barthelemy",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.BL"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 165.26791478373144,
+        "overall": 165.26791478373144
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "ET",
+        "name": "Ethiopia",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.ET"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 89.67391304347825,
+        "overall": 89.67391304347825
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "TJ",
+        "name": "Tajikistan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AS.TJ"
+        }
+      }
+    }
+  ],
+  "issue-15/probe-summary-None": [
+    {
+      "scores": {
+        "ping-slash24.median": 13309.859154929576,
+        "overall": 13309.859154929576
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "VI",
+        "name": "Us Virgin Islands",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.VI"
+        }
+      }
+    },
+    {
+      "scores": {
+        "gtr.sarima": 10770.279106227896,
+        "overall": 10770.279106227896
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "PM",
+        "name": "St. Pierre And Miquelon",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.PM"
+        }
+      }
+    },
+    {
+      "scores": {
+        "gtr.sarima": 4636.10048077868,
+        "overall": 4636.10048077868
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "HT",
+        "name": "Haiti",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.HT"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1920,
+        "overall": 1920
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "FK",
+        "name": "Falkland Islands (Malvinas)",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.SA.FK"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1777.7777777777776,
+        "overall": 1777.7777777777776
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "NF",
+        "name": "Norfolk Island",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.OC.NF"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1723.6180904522612,
+        "overall": 1723.6180904522612
+      },
+      "event_cnt": 2,
+      "entity": {
+        "code": "CV",
+        "name": "Cape Verde",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.CV"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1714.2857142857142,
+        "overall": 1714.2857142857142
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "NU",
+        "name": "Niue",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.OC.NU"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1548.3870967741934,
+        "overall": 1548.3870967741934
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "AQ",
+        "name": "Antarctica",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AN.AQ"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 929.8245614035087,
+        "overall": 929.8245614035087
+      },
+      "event_cnt": 4,
+      "entity": {
+        "code": "SS",
+        "name": "South Sudan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.SS"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 888.8888888888888,
+        "overall": 888.8888888888888
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "ER",
+        "name": "Eritrea",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.ER"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 676.0563380281691,
+        "overall": 676.0563380281691
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "NR",
+        "name": "Nauru",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.OC.NR"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 546.0376618281679,
+        "overall": 546.0376618281679
+      },
+      "event_cnt": 2,
+      "entity": {
+        "code": "VE",
+        "name": "Venezuela",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.SA.VE"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 495.8246346555324,
+        "overall": 495.8246346555324
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "MW",
+        "name": "Malawi",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.MW"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 296.29629629629625,
+        "overall": 296.29629629629625
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "CF",
+        "name": "Central African Republic",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.CF"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 282.8461616263781,
+        "overall": 282.8461616263781
+      },
+      "event_cnt": 4,
+      "entity": {
+        "code": "NG",
+        "name": "Nigeria",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.NG"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 272.72727272727275,
+        "overall": 272.72727272727275
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "KP",
+        "name": "North Korea",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AS.KP"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 241.37931034482756,
+        "overall": 241.37931034482756
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "BL",
+        "name": "Saint Barthelemy",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.BL"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 165.26791478373144,
+        "overall": 165.26791478373144
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "ET",
+        "name": "Ethiopia",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.ET"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 89.67391304347825,
+        "overall": 89.67391304347825
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "TJ",
+        "name": "Tajikistan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AS.TJ"
+        }
+      }
+    }
+  ],
+  "issue-15/probe-events-None": [
+    {
+      "entity": {
+        "code": "HT",
+        "name": "Haiti",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.HT"
+        }
+      },
+      "from": 1792715400,
+      "until": 1792731600,
+      "score": 4636.10048077868,
+      "datasource": "gtr",
+      "method": "sarima"
+    },
+    {
+      "entity": {
+        "code": "SS",
+        "name": "South Sudan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.SS"
+        }
+      },
+      "from": 1792717800,
+      "until": 1792726500,
+      "score": 254.38596491228068,
+      "datasource": "bgp",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "CV",
+        "name": "Cape Verde",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.CV"
+        }
+      },
+      "from": 1792719000,
+      "until": 1792741200,
+      "score": 743.7185929648241,
+      "datasource": "bgp",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "MW",
+        "name": "Malawi",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.MW"
+        }
+      },
+      "from": 1792726800,
+      "until": 1792734300,
+      "score": 495.8246346555324,
+      "datasource": "bgp",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "SS",
+        "name": "South Sudan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.SS"
+        }
+      },
+      "from": 1792727100,
+      "until": 1792728600,
+      "score": 43.859649122807014,
+      "datasource": "bgp",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "VE",
+        "name": "Venezuela",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.SA.VE"
+        }
+      },
+      "from": 1792728300,
+      "until": 1792729800,
+      "score": 510.8866222047862,
+      "datasource": "bgp",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "ET",
+        "name": "Ethiopia",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.ET"
+        }
+      },
+      "from": 1792740000,
+      "until": 1792741800,
+      "score": 165.26791478373144,
+      "datasource": "bgp",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "PM",
+        "name": "St. Pierre And Miquelon",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.PM"
+        }
+      },
+      "from": 1792742400,
+      "until": 1792753200,
+      "score": 10770.279106227896,
+      "datasource": "gtr",
+      "method": "sarima"
+    },
+    {
+      "entity": {
+        "code": "CF",
+        "name": "Central African Republic",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.CF"
+        }
+      },
+      "from": 1792748700,
+      "until": 1792751100,
+      "score": 296.29629629629625,
+      "datasource": "bgp",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "NG",
+        "name": "Nigeria",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.NG"
+        }
+      },
+      "from": 1792750800,
+      "until": 1792757400,
+      "score": 144.63436836249622,
+      "datasource": "bgp",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "BL",
+        "name": "Saint Barthelemy",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.BL"
+        }
+      },
+      "from": 1792758600,
+      "until": 1792760700,
+      "score": 241.37931034482756,
+      "datasource": "bgp",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "SS",
+        "name": "South Sudan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.SS"
+        }
+      },
+      "from": 1792760700,
+      "until": 1792767000,
+      "score": 184.21052631578945,
+      "datasource": "bgp",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "CV",
+        "name": "Cape Verde",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.CV"
+        }
+      },
+      "from": 1792761000,
+      "until": 1792800000,
+      "score": 979.8994974874371,
+      "datasource": "bgp",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "VI",
+        "name": "Us Virgin Islands",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.VI"
+        }
+      },
+      "from": 1792761000,
+      "until": 1792798800,
+      "score": 13309.859154929576,
+      "datasource": "ping-slash24",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "NG",
+        "name": "Nigeria",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.NG"
+        }
+      },
+      "from": 1792766400,
+      "until": 1792768500,
+      "score": 45.66602609487205,
+      "datasource": "bgp",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "NG",
+        "name": "Nigeria",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.NG"
+        }
+      },
+      "from": 1792770300,
+      "until": 1792771200,
+      "score": 19.116010923434814,
+      "datasource": "bgp",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "AQ",
+        "name": "Antarctica",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AN.AQ"
+        }
+      },
+      "from": 1792771200,
+      "until": 1792800000,
+      "score": 1548.3870967741934,
+      "datasource": "bgp",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "ER",
+        "name": "Eritrea",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.ER"
+        }
+      },
+      "from": 1792771200,
+      "until": 1792800000,
+      "score": 888.8888888888888,
+      "datasource": "bgp",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "FK",
+        "name": "Falkland Islands (Malvinas)",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.SA.FK"
+        }
+      },
+      "from": 1792771200,
+      "until": 1792800000,
+      "score": 1920,
+      "datasource": "bgp",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "NF",
+        "name": "Norfolk Island",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.OC.NF"
+        }
+      },
+      "from": 1792771200,
+      "until": 1792800000,
+      "score": 1777.7777777777776,
+      "datasource": "bgp",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "NU",
+        "name": "Niue",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.OC.NU"
+        }
+      },
+      "from": 1792771200,
+      "until": 1792800000,
+      "score": 1714.2857142857142,
+      "datasource": "bgp",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "NR",
+        "name": "Nauru",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.OC.NR"
+        }
+      },
+      "from": 1792771200,
+      "until": 1792800000,
+      "score": 676.0563380281691,
+      "datasource": "bgp",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "VE",
+        "name": "Venezuela",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.SA.VE"
+        }
+      },
+      "from": 1792776000,
+      "until": 1792778100,
+      "score": 35.15103962338171,
+      "datasource": "bgp",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "KP",
+        "name": "North Korea",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AS.KP"
+        }
+      },
+      "from": 1792779300,
+      "until": 1792780200,
+      "score": 272.72727272727275,
+      "datasource": "bgp",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "TJ",
+        "name": "Tajikistan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AS.TJ"
+        }
+      },
+      "from": 1792783200,
+      "until": 1792786500,
+      "score": 89.67391304347825,
+      "datasource": "bgp",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "SS",
+        "name": "South Sudan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.SS"
+        }
+      },
+      "from": 1792789800,
+      "until": 1792800000,
+      "score": 447.36842105263156,
+      "datasource": "bgp",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "NG",
+        "name": "Nigeria",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.NG"
+        }
+      },
+      "from": 1792796700,
+      "until": 1792800000,
+      "score": 73.429756245575,
+      "datasource": "bgp",
+      "method": "median"
+    }
+  ],
+  "issue-15/probe-events-STAR.median": [
+    {
+      "entity": {
+        "code": "HT",
+        "name": "Haiti",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.HT"
+        }
+      },
+      "from": 1792715400,
+      "until": 1792731600,
+      "score": 4636.10048077868,
+      "datasource": "gtr",
+      "method": "sarima"
+    },
+    {
+      "entity": {
+        "code": "PM",
+        "name": "St. Pierre And Miquelon",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.PM"
+        }
+      },
+      "from": 1792742400,
+      "until": 1792753200,
+      "score": 10770.279106227896,
+      "datasource": "gtr",
+      "method": "sarima"
+    }
+  ],
+  "issue-15/probe-summary-gtr.STAR": [
+    {
+      "scores": {
+        "ping-slash24.median": 13309.859154929576,
+        "overall": 13309.859154929576
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "VI",
+        "name": "Us Virgin Islands",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.VI"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1920,
+        "overall": 1920
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "FK",
+        "name": "Falkland Islands (Malvinas)",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.SA.FK"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1777.7777777777776,
+        "overall": 1777.7777777777776
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "NF",
+        "name": "Norfolk Island",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.OC.NF"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1723.6180904522612,
+        "overall": 1723.6180904522612
+      },
+      "event_cnt": 2,
+      "entity": {
+        "code": "CV",
+        "name": "Cape Verde",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.CV"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1714.2857142857142,
+        "overall": 1714.2857142857142
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "NU",
+        "name": "Niue",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.OC.NU"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1548.3870967741934,
+        "overall": 1548.3870967741934
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "AQ",
+        "name": "Antarctica",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AN.AQ"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 929.8245614035087,
+        "overall": 929.8245614035087
+      },
+      "event_cnt": 4,
+      "entity": {
+        "code": "SS",
+        "name": "South Sudan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.SS"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 888.8888888888888,
+        "overall": 888.8888888888888
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "ER",
+        "name": "Eritrea",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.ER"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 676.0563380281691,
+        "overall": 676.0563380281691
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "NR",
+        "name": "Nauru",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.OC.NR"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 546.0376618281679,
+        "overall": 546.0376618281679
+      },
+      "event_cnt": 2,
+      "entity": {
+        "code": "VE",
+        "name": "Venezuela",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.SA.VE"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 495.8246346555324,
+        "overall": 495.8246346555324
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "MW",
+        "name": "Malawi",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.MW"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 296.29629629629625,
+        "overall": 296.29629629629625
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "CF",
+        "name": "Central African Republic",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.CF"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 282.8461616263781,
+        "overall": 282.8461616263781
+      },
+      "event_cnt": 4,
+      "entity": {
+        "code": "NG",
+        "name": "Nigeria",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.NG"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 272.72727272727275,
+        "overall": 272.72727272727275
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "KP",
+        "name": "North Korea",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AS.KP"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 241.37931034482756,
+        "overall": 241.37931034482756
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "BL",
+        "name": "Saint Barthelemy",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.BL"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 165.26791478373144,
+        "overall": 165.26791478373144
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "ET",
+        "name": "Ethiopia",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.ET"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 89.67391304347825,
+        "overall": 89.67391304347825
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "TJ",
+        "name": "Tajikistan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AS.TJ"
+        }
+      }
+    }
+  ],
+  "issue-15/probe-grammar-STAR.sarima": [
+    {
+      "scores": {
+        "ping-slash24.median": 13309.859154929576,
+        "overall": 13309.859154929576
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "VI",
+        "name": "Us Virgin Islands",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.VI"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1920,
+        "overall": 1920
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "FK",
+        "name": "Falkland Islands (Malvinas)",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.SA.FK"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1777.7777777777776,
+        "overall": 1777.7777777777776
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "NF",
+        "name": "Norfolk Island",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.OC.NF"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1723.6180904522612,
+        "overall": 1723.6180904522612
+      },
+      "event_cnt": 2,
+      "entity": {
+        "code": "CV",
+        "name": "Cape Verde",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.CV"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1714.2857142857142,
+        "overall": 1714.2857142857142
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "NU",
+        "name": "Niue",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.OC.NU"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1548.3870967741934,
+        "overall": 1548.3870967741934
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "AQ",
+        "name": "Antarctica",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AN.AQ"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 929.8245614035087,
+        "overall": 929.8245614035087
+      },
+      "event_cnt": 4,
+      "entity": {
+        "code": "SS",
+        "name": "South Sudan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.SS"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 888.8888888888888,
+        "overall": 888.8888888888888
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "ER",
+        "name": "Eritrea",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.ER"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 676.0563380281691,
+        "overall": 676.0563380281691
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "NR",
+        "name": "Nauru",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.OC.NR"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 546.0376618281679,
+        "overall": 546.0376618281679
+      },
+      "event_cnt": 2,
+      "entity": {
+        "code": "VE",
+        "name": "Venezuela",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.SA.VE"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 495.8246346555324,
+        "overall": 495.8246346555324
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "MW",
+        "name": "Malawi",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.MW"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 296.29629629629625,
+        "overall": 296.29629629629625
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "CF",
+        "name": "Central African Republic",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.CF"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 282.8461616263781,
+        "overall": 282.8461616263781
+      },
+      "event_cnt": 4,
+      "entity": {
+        "code": "NG",
+        "name": "Nigeria",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.NG"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 272.72727272727275,
+        "overall": 272.72727272727275
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "KP",
+        "name": "North Korea",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AS.KP"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 241.37931034482756,
+        "overall": 241.37931034482756
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "BL",
+        "name": "Saint Barthelemy",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.BL"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 165.26791478373144,
+        "overall": 165.26791478373144
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "ET",
+        "name": "Ethiopia",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.ET"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 89.67391304347825,
+        "overall": 89.67391304347825
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "TJ",
+        "name": "Tajikistan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AS.TJ"
+        }
+      }
+    }
+  ],
+  "issue-15/probe-grammar-gtr.sarima": [
+    {
+      "scores": {
+        "ping-slash24.median": 13309.859154929576,
+        "overall": 13309.859154929576
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "VI",
+        "name": "Us Virgin Islands",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.VI"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1920,
+        "overall": 1920
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "FK",
+        "name": "Falkland Islands (Malvinas)",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.SA.FK"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1777.7777777777776,
+        "overall": 1777.7777777777776
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "NF",
+        "name": "Norfolk Island",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.OC.NF"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1723.6180904522612,
+        "overall": 1723.6180904522612
+      },
+      "event_cnt": 2,
+      "entity": {
+        "code": "CV",
+        "name": "Cape Verde",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.CV"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1714.2857142857142,
+        "overall": 1714.2857142857142
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "NU",
+        "name": "Niue",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.OC.NU"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1548.3870967741934,
+        "overall": 1548.3870967741934
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "AQ",
+        "name": "Antarctica",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AN.AQ"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 929.8245614035087,
+        "overall": 929.8245614035087
+      },
+      "event_cnt": 4,
+      "entity": {
+        "code": "SS",
+        "name": "South Sudan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.SS"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 888.8888888888888,
+        "overall": 888.8888888888888
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "ER",
+        "name": "Eritrea",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.ER"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 676.0563380281691,
+        "overall": 676.0563380281691
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "NR",
+        "name": "Nauru",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.OC.NR"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 546.0376618281679,
+        "overall": 546.0376618281679
+      },
+      "event_cnt": 2,
+      "entity": {
+        "code": "VE",
+        "name": "Venezuela",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.SA.VE"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 495.8246346555324,
+        "overall": 495.8246346555324
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "MW",
+        "name": "Malawi",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.MW"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 296.29629629629625,
+        "overall": 296.29629629629625
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "CF",
+        "name": "Central African Republic",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.CF"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 282.8461616263781,
+        "overall": 282.8461616263781
+      },
+      "event_cnt": 4,
+      "entity": {
+        "code": "NG",
+        "name": "Nigeria",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.NG"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 272.72727272727275,
+        "overall": 272.72727272727275
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "KP",
+        "name": "North Korea",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AS.KP"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 241.37931034482756,
+        "overall": 241.37931034482756
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "BL",
+        "name": "Saint Barthelemy",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.BL"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 165.26791478373144,
+        "overall": 165.26791478373144
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "ET",
+        "name": "Ethiopia",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.ET"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 89.67391304347825,
+        "overall": 89.67391304347825
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "TJ",
+        "name": "Tajikistan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AS.TJ"
+        }
+      }
+    }
+  ],
+  "issue-15/probe-summary-STAR.median": [
+    {
+      "scores": {
+        "gtr.sarima": 10770.279106227896,
+        "overall": 10770.279106227896
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "PM",
+        "name": "St. Pierre And Miquelon",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.PM"
+        }
+      }
+    },
+    {
+      "scores": {
+        "gtr.sarima": 4636.10048077868,
+        "overall": 4636.10048077868
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "HT",
+        "name": "Haiti",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.HT"
+        }
+      }
+    }
+  ],
+  "issue-15/probe-grammar-gtr.STAR,bgp.median": [
+    {
+      "scores": {
+        "ping-slash24.median": 13309.859154929576,
+        "overall": 13309.859154929576
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "VI",
+        "name": "Us Virgin Islands",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.VI"
+        }
+      }
+    }
+  ],
+  "issue-15/probe-events-gtr.STAR": [
+    {
+      "entity": {
+        "code": "SS",
+        "name": "South Sudan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.SS"
+        }
+      },
+      "from": 1792717800,
+      "until": 1792726500,
+      "score": 254.38596491228068,
+      "datasource": "bgp",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "CV",
+        "name": "Cape Verde",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.CV"
+        }
+      },
+      "from": 1792719000,
+      "until": 1792741200,
+      "score": 743.7185929648241,
+      "datasource": "bgp",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "MW",
+        "name": "Malawi",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.MW"
+        }
+      },
+      "from": 1792726800,
+      "until": 1792734300,
+      "score": 495.8246346555324,
+      "datasource": "bgp",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "SS",
+        "name": "South Sudan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.SS"
+        }
+      },
+      "from": 1792727100,
+      "until": 1792728600,
+      "score": 43.859649122807014,
+      "datasource": "bgp",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "VE",
+        "name": "Venezuela",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.SA.VE"
+        }
+      },
+      "from": 1792728300,
+      "until": 1792729800,
+      "score": 510.8866222047862,
+      "datasource": "bgp",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "ET",
+        "name": "Ethiopia",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.ET"
+        }
+      },
+      "from": 1792740000,
+      "until": 1792741800,
+      "score": 165.26791478373144,
+      "datasource": "bgp",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "CF",
+        "name": "Central African Republic",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.CF"
+        }
+      },
+      "from": 1792748700,
+      "until": 1792751100,
+      "score": 296.29629629629625,
+      "datasource": "bgp",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "NG",
+        "name": "Nigeria",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.NG"
+        }
+      },
+      "from": 1792750800,
+      "until": 1792757400,
+      "score": 144.63436836249622,
+      "datasource": "bgp",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "BL",
+        "name": "Saint Barthelemy",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.BL"
+        }
+      },
+      "from": 1792758600,
+      "until": 1792760700,
+      "score": 241.37931034482756,
+      "datasource": "bgp",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "SS",
+        "name": "South Sudan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.SS"
+        }
+      },
+      "from": 1792760700,
+      "until": 1792767000,
+      "score": 184.21052631578945,
+      "datasource": "bgp",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "CV",
+        "name": "Cape Verde",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.CV"
+        }
+      },
+      "from": 1792761000,
+      "until": 1792800000,
+      "score": 979.8994974874371,
+      "datasource": "bgp",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "VI",
+        "name": "Us Virgin Islands",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.VI"
+        }
+      },
+      "from": 1792761000,
+      "until": 1792798800,
+      "score": 13309.859154929576,
+      "datasource": "ping-slash24",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "NG",
+        "name": "Nigeria",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.NG"
+        }
+      },
+      "from": 1792766400,
+      "until": 1792768500,
+      "score": 45.66602609487205,
+      "datasource": "bgp",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "NG",
+        "name": "Nigeria",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.NG"
+        }
+      },
+      "from": 1792770300,
+      "until": 1792771200,
+      "score": 19.116010923434814,
+      "datasource": "bgp",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "AQ",
+        "name": "Antarctica",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AN.AQ"
+        }
+      },
+      "from": 1792771200,
+      "until": 1792800000,
+      "score": 1548.3870967741934,
+      "datasource": "bgp",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "ER",
+        "name": "Eritrea",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.ER"
+        }
+      },
+      "from": 1792771200,
+      "until": 1792800000,
+      "score": 888.8888888888888,
+      "datasource": "bgp",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "FK",
+        "name": "Falkland Islands (Malvinas)",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.SA.FK"
+        }
+      },
+      "from": 1792771200,
+      "until": 1792800000,
+      "score": 1920,
+      "datasource": "bgp",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "NF",
+        "name": "Norfolk Island",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.OC.NF"
+        }
+      },
+      "from": 1792771200,
+      "until": 1792800000,
+      "score": 1777.7777777777776,
+      "datasource": "bgp",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "NU",
+        "name": "Niue",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.OC.NU"
+        }
+      },
+      "from": 1792771200,
+      "until": 1792800000,
+      "score": 1714.2857142857142,
+      "datasource": "bgp",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "NR",
+        "name": "Nauru",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.OC.NR"
+        }
+      },
+      "from": 1792771200,
+      "until": 1792800000,
+      "score": 676.0563380281691,
+      "datasource": "bgp",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "VE",
+        "name": "Venezuela",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.SA.VE"
+        }
+      },
+      "from": 1792776000,
+      "until": 1792778100,
+      "score": 35.15103962338171,
+      "datasource": "bgp",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "KP",
+        "name": "North Korea",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AS.KP"
+        }
+      },
+      "from": 1792779300,
+      "until": 1792780200,
+      "score": 272.72727272727275,
+      "datasource": "bgp",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "TJ",
+        "name": "Tajikistan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AS.TJ"
+        }
+      },
+      "from": 1792783200,
+      "until": 1792786500,
+      "score": 89.67391304347825,
+      "datasource": "bgp",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "SS",
+        "name": "South Sudan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.SS"
+        }
+      },
+      "from": 1792789800,
+      "until": 1792800000,
+      "score": 447.36842105263156,
+      "datasource": "bgp",
+      "method": "median"
+    },
+    {
+      "entity": {
+        "code": "NG",
+        "name": "Nigeria",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.NG"
+        }
+      },
+      "from": 1792796700,
+      "until": 1792800000,
+      "score": 73.429756245575,
+      "datasource": "bgp",
+      "method": "median"
+    }
+  ],
+  "issue-15/probe-default-gtr.STAR": [
+    {
+      "scores": {
+        "ping-slash24.median": 189542.77286135696,
+        "overall": 189542.77286135696
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "GU",
+        "name": "Guam",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.OC.GU"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 20541.95804195804,
+        "overall": 20541.95804195804
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "BB",
+        "name": "Barbados",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.BB"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 16405.228758169935,
+        "overall": 16405.228758169935
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "BI",
+        "name": "Burundi",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.BI"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 16344.827586206895,
+        "overall": 16344.827586206895
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "AI",
+        "name": "Anguilla",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.AI"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 15047.619047619046,
+        "overall": 15047.619047619046
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "CK",
+        "name": "Cook Islands",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.OC.CK"
+        }
+      }
+    },
+    {
+      "scores": {
+        "ping-slash24.median": 13309.859154929576,
+        "overall": 13309.859154929576
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "VI",
+        "name": "Us Virgin Islands",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.VI"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 12000,
+        "overall": 12000
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "FM",
+        "name": "Federated States Of Micronesia",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.OC.FM"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 10476.190476190475,
+        "overall": 10476.190476190475
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "KM",
+        "name": "Comoros",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.KM"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 9234.805421950154,
+        "overall": 9234.805421950154
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "KW",
+        "name": "Kuwait",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AS.KW"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 7822.033898305084,
+        "overall": 7822.033898305084
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "PW",
+        "name": "Palau",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.OC.PW"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 6451.977401129943,
+        "overall": 6451.977401129943
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "GL",
+        "name": "Greenland",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.GL"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 5710.843373493976,
+        "overall": 5710.843373493976
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "LC",
+        "name": "Saint Lucia",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.LC"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 4221.59090909091,
+        "overall": 4221.59090909091
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "TD",
+        "name": "Chad",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.TD"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1920,
+        "overall": 1920
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "FK",
+        "name": "Falkland Islands (Malvinas)",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.SA.FK"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1777.7777777777776,
+        "overall": 1777.7777777777776
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "NF",
+        "name": "Norfolk Island",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.OC.NF"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1728.0701754385964,
+        "overall": 1728.0701754385964
+      },
+      "event_cnt": 5,
+      "entity": {
+        "code": "SS",
+        "name": "South Sudan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.SS"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1723.6180904522612,
+        "overall": 1723.6180904522612
+      },
+      "event_cnt": 2,
+      "entity": {
+        "code": "CV",
+        "name": "Cape Verde",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.CV"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1714.2857142857142,
+        "overall": 1714.2857142857142
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "NU",
+        "name": "Niue",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.OC.NU"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1548.3870967741934,
+        "overall": 1548.3870967741934
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "AQ",
+        "name": "Antarctica",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AN.AQ"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1271.7204409831093,
+        "overall": 1271.7204409831093
+      },
+      "event_cnt": 5,
+      "entity": {
+        "code": "NG",
+        "name": "Nigeria",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.NG"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 888.8888888888888,
+        "overall": 888.8888888888888
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "ER",
+        "name": "Eritrea",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.ER"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 676.0563380281691,
+        "overall": 676.0563380281691
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "NR",
+        "name": "Nauru",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.OC.NR"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 637.0370370370371,
+        "overall": 637.0370370370371
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "SZ",
+        "name": "Swaziland",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.SZ"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 546.0376618281679,
+        "overall": 546.0376618281679
+      },
+      "event_cnt": 2,
+      "entity": {
+        "code": "VE",
+        "name": "Venezuela",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.SA.VE"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 519.6188340807175,
+        "overall": 519.6188340807175
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "KH",
+        "name": "Cambodia",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AS.KH"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 495.8246346555324,
+        "overall": 495.8246346555324
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "MW",
+        "name": "Malawi",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.MW"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 296.29629629629625,
+        "overall": 296.29629629629625
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "CF",
+        "name": "Central African Republic",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.CF"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 272.72727272727275,
+        "overall": 272.72727272727275
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "KP",
+        "name": "North Korea",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AS.KP"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 241.37931034482756,
+        "overall": 241.37931034482756
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "BL",
+        "name": "Saint Barthelemy",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.BL"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 165.26791478373144,
+        "overall": 165.26791478373144
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "ET",
+        "name": "Ethiopia",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.ET"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 89.67391304347825,
+        "overall": 89.67391304347825
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "TJ",
+        "name": "Tajikistan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AS.TJ"
+        }
+      }
+    }
+  ],
+  "issue-15/probe-grammar-gtr.STARORbgp.median": [
+    {
+      "scores": {
+        "ping-slash24.median": 13309.859154929576,
+        "overall": 13309.859154929576
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "VI",
+        "name": "Us Virgin Islands",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.VI"
+        }
+      }
+    },
+    {
+      "scores": {
+        "gtr.sarima": 10770.279106227896,
+        "overall": 10770.279106227896
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "PM",
+        "name": "St. Pierre And Miquelon",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.PM"
+        }
+      }
+    },
+    {
+      "scores": {
+        "gtr.sarima": 4636.10048077868,
+        "overall": 4636.10048077868
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "HT",
+        "name": "Haiti",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.HT"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1920,
+        "overall": 1920
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "FK",
+        "name": "Falkland Islands (Malvinas)",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.SA.FK"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1777.7777777777776,
+        "overall": 1777.7777777777776
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "NF",
+        "name": "Norfolk Island",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.OC.NF"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1723.6180904522612,
+        "overall": 1723.6180904522612
+      },
+      "event_cnt": 2,
+      "entity": {
+        "code": "CV",
+        "name": "Cape Verde",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.CV"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1714.2857142857142,
+        "overall": 1714.2857142857142
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "NU",
+        "name": "Niue",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.OC.NU"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1548.3870967741934,
+        "overall": 1548.3870967741934
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "AQ",
+        "name": "Antarctica",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AN.AQ"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 929.8245614035087,
+        "overall": 929.8245614035087
+      },
+      "event_cnt": 4,
+      "entity": {
+        "code": "SS",
+        "name": "South Sudan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.SS"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 888.8888888888888,
+        "overall": 888.8888888888888
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "ER",
+        "name": "Eritrea",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.ER"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 676.0563380281691,
+        "overall": 676.0563380281691
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "NR",
+        "name": "Nauru",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.OC.NR"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 546.0376618281679,
+        "overall": 546.0376618281679
+      },
+      "event_cnt": 2,
+      "entity": {
+        "code": "VE",
+        "name": "Venezuela",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.SA.VE"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 495.8246346555324,
+        "overall": 495.8246346555324
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "MW",
+        "name": "Malawi",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.MW"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 296.29629629629625,
+        "overall": 296.29629629629625
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "CF",
+        "name": "Central African Republic",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.CF"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 282.8461616263781,
+        "overall": 282.8461616263781
+      },
+      "event_cnt": 4,
+      "entity": {
+        "code": "NG",
+        "name": "Nigeria",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.NG"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 272.72727272727275,
+        "overall": 272.72727272727275
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "KP",
+        "name": "North Korea",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AS.KP"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 241.37931034482756,
+        "overall": 241.37931034482756
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "BL",
+        "name": "Saint Barthelemy",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.BL"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 165.26791478373144,
+        "overall": 165.26791478373144
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "ET",
+        "name": "Ethiopia",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.ET"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 89.67391304347825,
+        "overall": 89.67391304347825
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "TJ",
+        "name": "Tajikistan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AS.TJ"
+        }
+      }
+    }
+  ],
+  "issue-15/probe-all-wildcard": [
+    {
+      "scores": {
+        "ping-slash24.median": 13309.859154929576,
+        "overall": 13309.859154929576
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "VI",
+        "name": "Us Virgin Islands",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.VI"
+        }
+      }
+    },
+    {
+      "scores": {
+        "gtr.sarima": 10770.279106227896,
+        "overall": 10770.279106227896
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "PM",
+        "name": "St. Pierre And Miquelon",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.PM"
+        }
+      }
+    },
+    {
+      "scores": {
+        "gtr.sarima": 4636.10048077868,
+        "overall": 4636.10048077868
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "HT",
+        "name": "Haiti",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.HT"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1920,
+        "overall": 1920
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "FK",
+        "name": "Falkland Islands (Malvinas)",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.SA.FK"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1777.7777777777776,
+        "overall": 1777.7777777777776
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "NF",
+        "name": "Norfolk Island",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.OC.NF"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1723.6180904522612,
+        "overall": 1723.6180904522612
+      },
+      "event_cnt": 2,
+      "entity": {
+        "code": "CV",
+        "name": "Cape Verde",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.CV"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1714.2857142857142,
+        "overall": 1714.2857142857142
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "NU",
+        "name": "Niue",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.OC.NU"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1548.3870967741934,
+        "overall": 1548.3870967741934
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "AQ",
+        "name": "Antarctica",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AN.AQ"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 929.8245614035087,
+        "overall": 929.8245614035087
+      },
+      "event_cnt": 4,
+      "entity": {
+        "code": "SS",
+        "name": "South Sudan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.SS"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 888.8888888888888,
+        "overall": 888.8888888888888
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "ER",
+        "name": "Eritrea",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.ER"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 676.0563380281691,
+        "overall": 676.0563380281691
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "NR",
+        "name": "Nauru",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.OC.NR"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 546.0376618281679,
+        "overall": 546.0376618281679
+      },
+      "event_cnt": 2,
+      "entity": {
+        "code": "VE",
+        "name": "Venezuela",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.SA.VE"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 495.8246346555324,
+        "overall": 495.8246346555324
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "MW",
+        "name": "Malawi",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.MW"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 296.29629629629625,
+        "overall": 296.29629629629625
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "CF",
+        "name": "Central African Republic",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.CF"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 282.8461616263781,
+        "overall": 282.8461616263781
+      },
+      "event_cnt": 4,
+      "entity": {
+        "code": "NG",
+        "name": "Nigeria",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.NG"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 272.72727272727275,
+        "overall": 272.72727272727275
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "KP",
+        "name": "North Korea",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AS.KP"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 241.37931034482756,
+        "overall": 241.37931034482756
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "BL",
+        "name": "Saint Barthelemy",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.BL"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 165.26791478373144,
+        "overall": 165.26791478373144
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "ET",
+        "name": "Ethiopia",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.ET"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 89.67391304347825,
+        "overall": 89.67391304347825
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "TJ",
+        "name": "Tajikistan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AS.TJ"
+        }
+      }
+    }
+  ],
+  "issue-15/probe-grammar-invalid": [
+    {
+      "scores": {
+        "ping-slash24.median": 13309.859154929576,
+        "overall": 13309.859154929576
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "VI",
+        "name": "Us Virgin Islands",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.VI"
+        }
+      }
+    },
+    {
+      "scores": {
+        "gtr.sarima": 10770.279106227896,
+        "overall": 10770.279106227896
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "PM",
+        "name": "St. Pierre And Miquelon",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.PM"
+        }
+      }
+    },
+    {
+      "scores": {
+        "gtr.sarima": 4636.10048077868,
+        "overall": 4636.10048077868
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "HT",
+        "name": "Haiti",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.HT"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1920,
+        "overall": 1920
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "FK",
+        "name": "Falkland Islands (Malvinas)",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.SA.FK"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1777.7777777777776,
+        "overall": 1777.7777777777776
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "NF",
+        "name": "Norfolk Island",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.OC.NF"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1723.6180904522612,
+        "overall": 1723.6180904522612
+      },
+      "event_cnt": 2,
+      "entity": {
+        "code": "CV",
+        "name": "Cape Verde",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.CV"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1714.2857142857142,
+        "overall": 1714.2857142857142
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "NU",
+        "name": "Niue",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.OC.NU"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 1548.3870967741934,
+        "overall": 1548.3870967741934
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "AQ",
+        "name": "Antarctica",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AN.AQ"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 929.8245614035087,
+        "overall": 929.8245614035087
+      },
+      "event_cnt": 4,
+      "entity": {
+        "code": "SS",
+        "name": "South Sudan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.SS"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 888.8888888888888,
+        "overall": 888.8888888888888
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "ER",
+        "name": "Eritrea",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.ER"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 676.0563380281691,
+        "overall": 676.0563380281691
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "NR",
+        "name": "Nauru",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.OC.NR"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 546.0376618281679,
+        "overall": 546.0376618281679
+      },
+      "event_cnt": 2,
+      "entity": {
+        "code": "VE",
+        "name": "Venezuela",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.SA.VE"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 495.8246346555324,
+        "overall": 495.8246346555324
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "MW",
+        "name": "Malawi",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.MW"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 296.29629629629625,
+        "overall": 296.29629629629625
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "CF",
+        "name": "Central African Republic",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.CF"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 282.8461616263781,
+        "overall": 282.8461616263781
+      },
+      "event_cnt": 4,
+      "entity": {
+        "code": "NG",
+        "name": "Nigeria",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.NG"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 272.72727272727275,
+        "overall": 272.72727272727275
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "KP",
+        "name": "North Korea",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AS.KP"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 241.37931034482756,
+        "overall": 241.37931034482756
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "BL",
+        "name": "Saint Barthelemy",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.BL"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 165.26791478373144,
+        "overall": 165.26791478373144
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "ET",
+        "name": "Ethiopia",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.ET"
+        }
+      }
+    },
+    {
+      "scores": {
+        "bgp.median": 89.67391304347825,
+        "overall": 89.67391304347825
+      },
+      "event_cnt": 1,
+      "entity": {
+        "code": "TJ",
+        "name": "Tajikistan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AS.TJ"
+        }
+      }
+    }
+  ],
+  "issue-15/probe-alerts-None": [
+    {
+      "datasource": "gtr",
+      "entity": {
+        "code": "HT",
+        "name": "Haiti",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.HT"
+        }
+      },
+      "time": 1792715400,
+      "level": "critical",
+      "condition": "< 0.8",
+      "value": 2155,
+      "historyValue": 2602,
+      "method": "sarima"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "SS",
+        "name": "South Sudan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.SS"
+        }
+      },
+      "time": 1792717500,
+      "level": "normal",
+      "condition": "normal",
+      "value": 114,
+      "historyValue": 114,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "SS",
+        "name": "South Sudan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.SS"
+        }
+      },
+      "time": 1792717800,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 112,
+      "historyValue": 114,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "CV",
+        "name": "Cape Verde",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.CV"
+        }
+      },
+      "time": 1792719000,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 195,
+      "historyValue": 199,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "SZ",
+        "name": "Swaziland",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.SZ"
+        }
+      },
+      "time": 1792721700,
+      "level": "normal",
+      "condition": "normal",
+      "value": 270,
+      "historyValue": 270,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "SS",
+        "name": "South Sudan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.SS"
+        }
+      },
+      "time": 1792726500,
+      "level": "normal",
+      "condition": "normal",
+      "value": 114,
+      "historyValue": 114,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "MW",
+        "name": "Malawi",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.MW"
+        }
+      },
+      "time": 1792726800,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 920,
+      "historyValue": 958,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "SS",
+        "name": "South Sudan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.SS"
+        }
+      },
+      "time": 1792727100,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 112,
+      "historyValue": 114,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "VE",
+        "name": "Venezuela",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.SA.VE"
+        }
+      },
+      "time": 1792728300,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 20281,
+      "historyValue": 25490,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "SS",
+        "name": "South Sudan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.SS"
+        }
+      },
+      "time": 1792728600,
+      "level": "normal",
+      "condition": "normal",
+      "value": 114,
+      "historyValue": 114,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "VE",
+        "name": "Venezuela",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.SA.VE"
+        }
+      },
+      "time": 1792729800,
+      "level": "normal",
+      "condition": "normal",
+      "value": 25490,
+      "historyValue": 25490,
+      "method": "median"
+    },
+    {
+      "datasource": "gtr",
+      "entity": {
+        "code": "HT",
+        "name": "Haiti",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.HT"
+        }
+      },
+      "time": 1792731600,
+      "level": "normal",
+      "condition": "normal",
+      "value": 606,
+      "historyValue": 856,
+      "method": "sarima"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "KH",
+        "name": "Cambodia",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AS.KH"
+        }
+      },
+      "time": 1792734300,
+      "level": "normal",
+      "condition": "normal",
+      "value": 1784,
+      "historyValue": 1784,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "MW",
+        "name": "Malawi",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.MW"
+        }
+      },
+      "time": 1792734300,
+      "level": "normal",
+      "condition": "normal",
+      "value": 953,
+      "historyValue": 958,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "ET",
+        "name": "Ethiopia",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.ET"
+        }
+      },
+      "time": 1792740000,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 4391,
+      "historyValue": 4647,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "CV",
+        "name": "Cape Verde",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.CV"
+        }
+      },
+      "time": 1792741200,
+      "level": "normal",
+      "condition": "normal",
+      "value": 199,
+      "historyValue": 199,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "ET",
+        "name": "Ethiopia",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.ET"
+        }
+      },
+      "time": 1792741800,
+      "level": "normal",
+      "condition": "normal",
+      "value": 4647,
+      "historyValue": 4647,
+      "method": "median"
+    },
+    {
+      "datasource": "gtr",
+      "entity": {
+        "code": "PM",
+        "name": "St. Pierre And Miquelon",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.PM"
+        }
+      },
+      "time": 1792742400,
+      "level": "critical",
+      "condition": "< 0.8",
+      "value": 150,
+      "historyValue": 375,
+      "method": "sarima"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "NG",
+        "name": "Nigeria",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.NG"
+        }
+      },
+      "time": 1792743000,
+      "level": "normal",
+      "condition": "normal",
+      "value": 9822,
+      "historyValue": 9887,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "CF",
+        "name": "Central African Republic",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.CF"
+        }
+      },
+      "time": 1792748700,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 50,
+      "historyValue": 54,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "NG",
+        "name": "Nigeria",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.NG"
+        }
+      },
+      "time": 1792750800,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 9757,
+      "historyValue": 9887,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "CF",
+        "name": "Central African Republic",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.CF"
+        }
+      },
+      "time": 1792751100,
+      "level": "normal",
+      "condition": "normal",
+      "value": 54,
+      "historyValue": 54,
+      "method": "median"
+    },
+    {
+      "datasource": "gtr",
+      "entity": {
+        "code": "PM",
+        "name": "St. Pierre And Miquelon",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.PM"
+        }
+      },
+      "time": 1792753200,
+      "level": "normal",
+      "condition": "normal",
+      "value": 841,
+      "historyValue": 989,
+      "method": "sarima"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "NG",
+        "name": "Nigeria",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.NG"
+        }
+      },
+      "time": 1792757400,
+      "level": "normal",
+      "condition": "normal",
+      "value": 9822,
+      "historyValue": 9887,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "BL",
+        "name": "Saint Barthelemy",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.BL"
+        }
+      },
+      "time": 1792758600,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 27,
+      "historyValue": 29,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "SS",
+        "name": "South Sudan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.SS"
+        }
+      },
+      "time": 1792760700,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 112,
+      "historyValue": 114,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "BL",
+        "name": "Saint Barthelemy",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.BL"
+        }
+      },
+      "time": 1792760700,
+      "level": "normal",
+      "condition": "normal",
+      "value": 29,
+      "historyValue": 29,
+      "method": "median"
+    },
+    {
+      "datasource": "ping-slash24",
+      "entity": {
+        "code": "VI",
+        "name": "Us Virgin Islands",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.VI"
+        }
+      },
+      "time": 1792761000,
+      "level": "critical",
+      "condition": "< 0.8",
+      "value": 112,
+      "historyValue": 142,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "CV",
+        "name": "Cape Verde",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.CV"
+        }
+      },
+      "time": 1792761000,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 196,
+      "historyValue": 199,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "GL",
+        "name": "Greenland",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.GL"
+        }
+      },
+      "time": 1792766100,
+      "level": "normal",
+      "condition": "normal",
+      "value": 177,
+      "historyValue": 177,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "NG",
+        "name": "Nigeria",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.NG"
+        }
+      },
+      "time": 1792766400,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 9758,
+      "historyValue": 9887,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "SS",
+        "name": "South Sudan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.SS"
+        }
+      },
+      "time": 1792767000,
+      "level": "normal",
+      "condition": "normal",
+      "value": 114,
+      "historyValue": 114,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "NG",
+        "name": "Nigeria",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.NG"
+        }
+      },
+      "time": 1792768500,
+      "level": "normal",
+      "condition": "normal",
+      "value": 9825,
+      "historyValue": 9887,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "NG",
+        "name": "Nigeria",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.NG"
+        }
+      },
+      "time": 1792770300,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 9761,
+      "historyValue": 9887,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "NG",
+        "name": "Nigeria",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.NG"
+        }
+      },
+      "time": 1792771200,
+      "level": "normal",
+      "condition": "normal",
+      "value": 9825,
+      "historyValue": 9887,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "AQ",
+        "name": "Antarctica",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AN.AQ"
+        }
+      },
+      "time": 1792771200,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 30,
+      "historyValue": 31,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "ER",
+        "name": "Eritrea",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.ER"
+        }
+      },
+      "time": 1792771200,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 53,
+      "historyValue": 54,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "FK",
+        "name": "Falkland Islands (Malvinas)",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.SA.FK"
+        }
+      },
+      "time": 1792771200,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 24,
+      "historyValue": 25,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "NF",
+        "name": "Norfolk Island",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.OC.NF"
+        }
+      },
+      "time": 1792771200,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 26,
+      "historyValue": 27,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "NU",
+        "name": "Niue",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.OC.NU"
+        }
+      },
+      "time": 1792771200,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 27,
+      "historyValue": 28,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "NR",
+        "name": "Nauru",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.OC.NR"
+        }
+      },
+      "time": 1792771200,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 70,
+      "historyValue": 71,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "VE",
+        "name": "Venezuela",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.SA.VE"
+        }
+      },
+      "time": 1792776000,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 25234,
+      "historyValue": 25490,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "VE",
+        "name": "Venezuela",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.SA.VE"
+        }
+      },
+      "time": 1792778100,
+      "level": "normal",
+      "condition": "normal",
+      "value": 25490,
+      "historyValue": 25490,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "KP",
+        "name": "North Korea",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AS.KP"
+        }
+      },
+      "time": 1792779300,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 18,
+      "historyValue": 22,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "KP",
+        "name": "North Korea",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AS.KP"
+        }
+      },
+      "time": 1792780200,
+      "level": "normal",
+      "condition": "normal",
+      "value": 22,
+      "historyValue": 22,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "TJ",
+        "name": "Tajikistan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AS.TJ"
+        }
+      },
+      "time": 1792783200,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 362,
+      "historyValue": 368,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "TJ",
+        "name": "Tajikistan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AS.TJ"
+        }
+      },
+      "time": 1792786500,
+      "level": "normal",
+      "condition": "normal",
+      "value": 368,
+      "historyValue": 368,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "SS",
+        "name": "South Sudan",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.SS"
+        }
+      },
+      "time": 1792789800,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 111,
+      "historyValue": 114,
+      "method": "median"
+    },
+    {
+      "datasource": "bgp",
+      "entity": {
+        "code": "NG",
+        "name": "Nigeria",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.AF.NG"
+        }
+      },
+      "time": 1792796700,
+      "level": "critical",
+      "condition": "< 0.99",
+      "value": 9755,
+      "historyValue": 9887,
+      "method": "median"
+    },
+    {
+      "datasource": "ping-slash24",
+      "entity": {
+        "code": "VI",
+        "name": "Us Virgin Islands",
+        "subnames": [],
+        "type": "country",
+        "attrs": {
+          "fqid": "geo.netacuity.NA.VI"
+        }
+      },
+      "time": 1792798800,
+      "level": "normal",
+      "condition": "normal",
+      "value": 117,
+      "historyValue": 142,
+      "method": "median"
+    }
+  ],
+  "issue-16/probe-raw-20": [
+    [
+      {
+        "entityType": "region",
+        "entityCode": "1828",
+        "entityName": "Semnan",
+        "entityFqid": "geo.provider.AS.IR.1828",
+        "datasource": "merit-nt",
+        "subtype": "",
+        "from": 1792713600,
+        "until": 1792800000,
+        "step": 7200,
+        "nativeStep": 300,
+        "values": [
+          0.46153846153846156, 0.48333333333333334, 0.4107142857142857, 0.19298245614035087, 0.24,
+          0.40186915887850466, 0.4083333333333333, 0.2966101694915254, 0.4811320754716981,
+          0.36607142857142855, 0.4017857142857143, 0.2966101694915254
+        ]
+      }
+    ]
+  ],
+  "issue-16/probe-raw-2000": [
+    [
+      {
+        "entityType": "region",
+        "entityCode": "1828",
+        "entityName": "Semnan",
+        "entityFqid": "geo.provider.AS.IR.1828",
+        "datasource": "merit-nt",
+        "subtype": "",
+        "from": 1792713600,
+        "until": 1792800000,
+        "step": 300,
+        "nativeStep": 300,
+        "values": [
+          0.4,
+          0.2,
+          0.2,
+          0.4,
+          1,
+          0.4,
+          0.8,
+          0.4,
+          0.2,
+          0.8,
+          0.4,
+          0,
+          1,
+          0.2,
+          1,
+          1,
+          0.4,
+          0.6,
+          0.4,
+          0.2,
+          0.4,
+          0.2,
+          0.4,
+          0.25,
+          0.8,
+          0.4,
+          0.2,
+          0.6,
+          0.8,
+          0,
+          1,
+          0,
+          0.8,
+          0.6,
+          0.6,
+          0,
+          0.6,
+          0.4,
+          0.4,
+          0.6,
+          0.2,
+          0.6,
+          0.4,
+          0.8,
+          0.4,
+          0.8,
+          0.2,
+          0.4,
+          null,
+          1,
+          0.2,
+          0.4,
+          0.2,
+          1,
+          0.6,
+          1,
+          0.8,
+          0.4,
+          0.6,
+          0.25,
+          0.25,
+          0.2,
+          0.2,
+          0.4,
+          0,
+          0,
+          0.2,
+          0.2,
+          0,
+          0.2,
+          0.6,
+          0.75,
+          0.25,
+          0.6,
+          0.2,
+          0.4,
+          0,
+          0,
+          0.6,
+          0,
+          0.2,
+          0.2,
+          0.2,
+          0,
+          1,
+          0,
+          0,
+          0.2,
+          0.2,
+          0.2,
+          0.2,
+          0,
+          0,
+          0.2,
+          0.4,
+          0,
+          null,
+          null,
+          0.6666666666666666,
+          0.4,
+          0.2,
+          0.2,
+          0.2,
+          0,
+          0,
+          0.2,
+          0,
+          0,
+          null,
+          0.25,
+          0,
+          0,
+          0.2,
+          0.2,
+          0.6,
+          0.6,
+          0.4,
+          0.2,
+          0.4,
+          0.5,
+          0.2,
+          0.6,
+          0.4,
+          0,
+          0.2,
+          0.2,
+          1,
+          0.8,
+          0.6,
+          0.4,
+          0.2,
+          0,
+          null,
+          null,
+          1,
+          0.6,
+          0.4,
+          0,
+          0.2,
+          0.2,
+          0.6,
+          0.2,
+          1,
+          0.25,
+          0.6,
+          0.6,
+          0.2,
+          0.4,
+          0.6,
+          0.8,
+          0.2,
+          0.2,
+          0.8,
+          0.4,
+          0.4,
+          0.2,
+          1.2,
+          0.2,
+          0.4,
+          0.2,
+          0.4,
+          0.4,
+          0.4,
+          0.6,
+          0,
+          0.2,
+          0.2,
+          0.2,
+          0.75,
+          0.8,
+          0.4,
+          0.2,
+          0.8,
+          0.2,
+          0.2,
+          0.4,
+          0.2,
+          0.6,
+          0,
+          0.5,
+          0.4,
+          0.2,
+          0.2,
+          0.4,
+          0,
+          0.2,
+          0,
+          0.2,
+          0,
+          0,
+          0.4,
+          0.2,
+          1,
+          0.2,
+          0.4,
+          0.6,
+          0.2,
+          0.6,
+          0.6,
+          0.8,
+          0.2,
+          0.6,
+          0.2,
+          0,
+          null,
+          0.5,
+          0.4,
+          0.6,
+          1,
+          0.4,
+          0.8,
+          0.8,
+          0.6,
+          0.4,
+          0.2,
+          0.25,
+          2,
+          0.6,
+          0.2,
+          0,
+          0.2,
+          1,
+          0,
+          0.2,
+          0.4,
+          0.2,
+          0.2,
+          0.25,
+          0.3333333333333333,
+          0.6,
+          0.4,
+          0.6,
+          0.4,
+          0.4,
+          0.2,
+          0.2,
+          0.2,
+          0.4,
+          0.6,
+          0.5,
+          0.6666666666666666,
+          0,
+          0.2,
+          0,
+          0.2,
+          0.8,
+          0.2,
+          0.4,
+          0.6,
+          0.4,
+          0.2,
+          0.5,
+          1,
+          0.4,
+          0.8,
+          0.4,
+          0,
+          0,
+          0.4,
+          0.8,
+          1.2,
+          0,
+          1,
+          0,
+          0.4,
+          0.2,
+          0.4,
+          0.8,
+          0.6,
+          0.4,
+          0,
+          0,
+          0.2,
+          0.2,
+          0,
+          0.2,
+          1,
+          0.4,
+          0.4,
+          0,
+          0.2,
+          0.8,
+          0.4,
+          0.2,
+          0.2,
+          0,
+          0.2,
+          0
+        ]
+      }
+    ]
+  ]
+}

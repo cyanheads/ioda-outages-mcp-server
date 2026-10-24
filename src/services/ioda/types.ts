@@ -47,12 +47,14 @@ export interface EntitySearch extends PageRequest, ScopeFilter {
 /** Canonical event request. */
 export interface EventRequest extends PageRequest, EntityFilter, ScopeFilter, TimeWindow {
   extendWindowSeconds: number;
+  ignoreMethods?: string[];
   includeAlerts: boolean;
   source?: Source;
 }
 /** Canonical alert request. */
 export interface AlertRequest extends PageRequest, EntityFilter, ScopeFilter, TimeWindow {
   extendWindowSeconds: number;
+  ignoreMethods?: string[];
   source?: Source;
 }
 /** Canonical summary request; IODA ranks one entity type at a time. */
@@ -60,6 +62,7 @@ export interface SummaryRequest extends PageRequest, ScopeFilter, TimeWindow {
   entityCode?: string;
   entityType: EntityType;
   extendWindowSeconds: number;
+  ignoreMethods?: string[];
 }
 /** Canonical single-source signal request. */
 export interface SignalRequest extends EntityReference, TimeWindow {

@@ -2,6 +2,7 @@
  * @fileoverview Entrypoint registration without starting a transport or network request.
  * @module tests/smoke/registration
  */
+import { z } from '@cyanheads/mcp-ts-core';
 import { expect, it, vi } from 'vitest';
 
 const capture = vi.hoisted(() => ({ app: vi.fn() }));
@@ -36,6 +37,19 @@ it('registers exactly the six read-only IODA tools, identity and lifecycle', asy
       openWorldHint: true,
     });
     expect(tool.input).toBeDefined();
+    const schema = z.toJSONSchema(tool.input);
+    const properties = schema.properties as Record<string, { pattern?: string }>;
+    for (const field of [
+      'entityType',
+      'entityCode',
+      'relatedToType',
+      'relatedToCode',
+      'source',
+      'query',
+    ]) {
+      if (properties[field])
+        expect(properties[field].pattern, `${tool.name}.${field}`).toBeTypeOf('string');
+    }
     expect(tool.output).toBeDefined();
     expect(tool.format).toBeTypeOf('function');
   }

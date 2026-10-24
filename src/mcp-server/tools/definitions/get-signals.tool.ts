@@ -21,11 +21,12 @@ import {
   finish,
   invocationClock,
   numericSource,
+  numericSourceInput,
   renderOutput,
   requiredEntity,
   SERVED_CAPS,
+  signalWindowInputs,
   validateWindow,
-  windowInputs,
 } from '../ioda-common.js';
 
 const Output = z.object({
@@ -59,16 +60,12 @@ const semantics = {
 };
 export const getSignals = tool('ioda_get_signals', {
   description:
-    'Fetch numeric BGP visibility, active IPv4 /24 probing, or Merit telescope series for one entity in an explicit Unix-second window of at most 31 days. source is required: bgp, ping-slash24, or merit-nt. Nulls are missing observations, not zero connectivity. maxPoints requests upstream aggregation, not first-N samples; smaller values lose temporal resolution. Returned series retain aligned boundary buckets; timestamps and intervals support cross-source comparisons.',
+    'Fetch numeric BGP visibility, active IPv4 /24 probing, or Merit telescope series for one entity in an explicit Unix-second window of at most 31 days. source is required: bgp, ping-slash24, or merit-nt. Nulls are missing observations, not zero connectivity. maxPoints requests upstream aggregation, not first-N samples; smaller values lose temporal resolution. Returned series retain aligned boundary buckets with exclusive returned until bounds that may extend beyond requested bounds; timestamps and intervals support cross-source comparisons.',
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: true },
   input: z.object({
     ...entityInputs,
-    ...windowInputs,
-    source: z
-      .string()
-      .describe(
-        'Exactly bgp, ping-slash24, or merit-nt; case and whitespace normalized. gtr and ucsd-nt are not supported numeric sources.',
-      ),
+    ...signalWindowInputs,
+    source: numericSourceInput,
     maxPoints: z
       .number()
       .int()
@@ -87,7 +84,7 @@ export const getSignals = tool('ioda_get_signals', {
       reason: 'invalid_entity',
       code: JsonRpcErrorCode.ValidationError,
       thrownBy: 'service',
-      when: 'Invalid entity type, code, or incomplete pair.',
+      when: 'entityCode is incompatible with entityType, zero or out of range.',
       recovery:
         'Call ioda_search_entities with entityType and query to resolve a country, region, ASN, or geoasn, then call ioda_get_signals with the selected entityType and a returned code as entityCode.',
     },
@@ -97,15 +94,7 @@ export const getSignals = tool('ioda_get_signals', {
       thrownBy: 'service',
       when: 'Reversed, future, millisecond, or over-31-day window.',
       recovery:
-        'Call ioda_get_signals with integer Unix seconds from < until <= now and a window no longer than 31 days; split longer investigations into adjacent windows.',
-    },
-    {
-      reason: 'invalid_source',
-      code: JsonRpcErrorCode.ValidationError,
-      thrownBy: 'service',
-      when: 'source is not bgp, ping-slash24, or merit-nt.',
-      recovery:
-        'Call ioda_get_signals with source bgp, ping-slash24, or merit-nt; for gtr detections, call ioda_find_outages or ioda_get_alerts with source gtr.',
+        'Call ioda_get_signals with integer Unix seconds from < until <= now and a window no longer than 31 days; split longer investigations into adjacent windows; aligned boundary buckets can repeat.',
     },
     {
       reason: 'upstream_bad_request',
@@ -184,6 +173,8 @@ export const getSignals = tool('ioda_get_signals', {
       { ...result, semantics: { source, unit: SOURCE_UNITS[source], ...semantics[source] } },
       composeEnrichment(request, [
         maxPoints.notice,
+        result.series.some((series) => series.step > series.nativeStep) &&
+          'Coarse series aggregate underlying samples, so values need not equal an unweighted mean of finer returned buckets; a non-null aggregate cannot establish complete finer-resolution coverage. Request a narrower window with ioda_get_signals to inspect finer observations.',
         !result.series.length &&
           'No observations were returned. Call ioda_search_entities to verify the code, or ioda_get_signals with another core source or an earlier window. Missing data does not establish healthy connectivity.',
       ]),

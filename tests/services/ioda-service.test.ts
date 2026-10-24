@@ -71,6 +71,32 @@ async function settle<T>(pending: Promise<T>) {
   return outcome;
 }
 describe('network seam', () => {
+  it.each([
+    [undefined, null],
+    [[], null],
+    [['gtr.*', 'bgp.median'], 'gtr.*,bgp.median'],
+  ] as const)(
+    'serializes exclusion array %j for every outage endpoint',
+    async (ignoreMethods, expected) => {
+      for (const method of ['getEvents', 'getAlerts', 'getSummary'] as const) {
+        const fetcher = vi.fn(async (_request: URL | string) => envelope([]));
+        const request = {
+          ...input,
+          from: 1000,
+          until: 2000,
+          extendWindowSeconds: 0,
+          includeAlerts: true,
+          ...(ignoreMethods && { ignoreMethods: [...ignoreMethods] }),
+        };
+        await service(fetcher)[method](request, createMockContext(), budget());
+        expect(fetcher).toHaveBeenCalledTimes(1);
+        const url = new URL(String(fetcher.mock.calls[0]?.[0]));
+        expect(url.searchParams.get('ignoreMethods')).toBe(expected);
+        expect(url.searchParams.get('from')).toBe('1000');
+        expect(url.searchParams.get('until')).toBe('2000');
+      }
+    },
+  );
   it('preserves extended events, clipped ends, nested transitions and null baselines', async () => {
     const entity = { code: 'US', name: 'US', type: null };
     const alert = {
@@ -856,7 +882,7 @@ describe('status publication allowance', () => {
     )) as { value: StatusEvidence };
     expect(value.signals[0]?.series[0]).toMatchObject({ step: 600, nativeStep: 300 });
     expect(value.limitations).toContain(
-      'Coarser aggregate buckets cannot establish current coverage; inspect ioda_get_signals over a narrower window.',
+      'Coarser aggregate buckets cannot establish current coverage: upstream aggregates underlying samples, so values need not equal an unweighted mean of finer returned buckets and non-null aggregates cannot establish complete finer-resolution coverage. Inspect ioda_get_signals over a narrower window.',
     );
   });
 });

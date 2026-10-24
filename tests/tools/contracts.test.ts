@@ -2,6 +2,7 @@
  * @fileoverview Public IODA contracts exercised through the injected HTTP boundary.
  * @module tests/tools/contracts
  */
+import { z } from '@cyanheads/mcp-ts-core';
 import { JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
 import { runToolContract } from '@cyanheads/mcp-ts-core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -88,6 +89,16 @@ function envelope(data: unknown) {
 function text(result: Result) {
   return result.content.map((block) => (block.type === 'text' ? block.text : '')).join('\n');
 }
+/** Row/default guidance remains exact; outage-semantics tests independently assert full membership recovery. */
+function rowGuidance(notice: unknown): unknown {
+  if (typeof notice !== 'string') return notice;
+  return (
+    notice.replace(
+      /^Membership coverage is unverified:[\s\S]*?keeping all filters and limit fixed across its pages\.(?: |$)/,
+      '',
+    ) || undefined
+  );
+}
 /** Decode JSON fences without calling the production renderer or byte counter. */
 function parity(result: Result) {
   expect(result.isError).not.toBe(true);
@@ -138,10 +149,250 @@ function failure(result: Result, code: number, reason?: string) {
   }
   return error;
 }
+const lexicalTypeMessage =
+  'Call ioda_search_entities with entityType country, region, asn, or geoasn; case and surrounding whitespace are accepted.';
+const lexicalCodeMessage =
+  'Use two country letters, decimal region digits, an optionally AS-prefixed ASN, or an ASN joined by a hyphen to region digits or two country letters; call ioda_search_entities to resolve a code.';
+function lexicalFailure(result: Result, name: string, field: string, message: string) {
+  const error = failure(result, JsonRpcErrorCode.InvalidParams, 'invalid_arguments');
+  expect(error.message).toBe(
+    `Input validation error: Invalid arguments for tool ${name}: ${field}: ${message}`,
+  );
+  expect(error.data?.recovery?.hint).toBe(`${field}: ${message}`);
+  expect(text(result)).toContain(`Error: ${error.message}`);
+  return error;
+}
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(now);
   calls.length = 0;
+});
+
+describe('normalized transport compatibility', () => {
+  it.each([
+    [
+      { entityType: ' ASN ', entityCode: 123 },
+      { entityType: 'asn', entityCode: '123' },
+    ],
+    [
+      { entityType: ' ASN ', entityCode: ` aS${'0'.repeat(5000)}123 ` },
+      { entityType: 'asn', entityCode: '123' },
+    ],
+    [
+      { entityType: ' GeoASN ', entityCode: ` AS${'0'.repeat(5000)}123-ir ` },
+      { entityType: 'geoasn', entityCode: '123-IR' },
+    ],
+    [
+      {
+        entityType: 'country',
+        entityCode: '\uFEFF\t',
+        query: ' '.repeat(5000),
+        relatedToType: '\n',
+        relatedToCode: '\r',
+      },
+      { entityType: 'country' },
+    ],
+    [
+      { entityType: 'country', query: `\uFEFF${'😀'.repeat(100)}\u2028` },
+      { entityType: 'country', query: '😀'.repeat(100) },
+    ],
+  ])('preserves normalized successful transport input %j', async (input, expected) => {
+    network(() => envelope([]));
+    // @ts-expect-error Transport callers can send numeric codes; framework parsing repairs them.
+    const result = await runToolContract(searchEntities, input);
+    const data = parity(result);
+    expect(data.applied).toEqual({ ...expected, limit: 20, page: 0 });
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.searchParams.get('entityType')).toBe(expected.entityType);
+    expect(calls[0]?.searchParams.get('entityCode')).toBe(
+      'entityCode' in expected ? expected.entityCode : null,
+    );
+    expect(calls[0]?.searchParams.get('search')).toBe('query' in expected ? expected.query : null);
+  });
+});
+
+describe('advertised lexical input patterns', () => {
+  const definitions = [
+    searchEntities,
+    getStatus,
+    findOutages,
+    summarizeOutages,
+    getSignals,
+    getAlerts,
+  ];
+  it('advertises independently executable patterns on every lexical field', () => {
+    for (const definition of definitions) {
+      const schema = z.toJSONSchema(definition.input);
+      const properties = schema.properties as Record<string, { pattern?: string }>;
+      for (const field of [
+        'entityType',
+        'entityCode',
+        'relatedToType',
+        'relatedToCode',
+        'source',
+        'query',
+      ]) {
+        if (!properties[field]) continue;
+        const pattern = properties[field].pattern;
+        expect(pattern, `${definition.name}.${field}`).toBeTypeOf('string');
+        const regex = new RegExp(pattern ?? '');
+        const cases: [string, boolean][] =
+          field === 'query'
+            ? [
+                [` ${'a'.repeat(200)} `, true],
+                [' '.repeat(5000), true],
+                ['😀'.repeat(100), true],
+                ['😀'.repeat(101), false],
+                ['a'.repeat(201), false],
+              ]
+            : field.endsWith('Type')
+              ? [
+                  [' CoUnTrY ', true],
+                  [' GEOASN ', true],
+                  ['planet', false],
+                  ['country\nx', false],
+                ]
+              : field.endsWith('Code')
+                ? [
+                    [' us ', true],
+                    [`aS${'0'.repeat(5000)}123-ir`, true],
+                    ['0', true],
+                    ['USA', false],
+                    ['40934-USA', false],
+                    ['12\n3', false],
+                  ]
+                : [
+                    [' BGP ', true],
+                    ['ping-SLASH24', true],
+                    ['merit-NT', true],
+                    ['ucsd-nt', false],
+                    ['gtr', definition.name !== 'ioda_get_signals'],
+                  ];
+        for (const [value, valid] of cases)
+          expect(regex.test(value), `${definition.name}.${field}: ${value.length}`).toBe(valid);
+        const required = schema.required?.includes(field) ?? false;
+        if (field !== 'query')
+          expect(regex.test(' \n\t'), `${definition.name}.${field} blank`).toBe(!required);
+      }
+    }
+  });
+  it.each([
+    [searchEntities, { entityType: 'planet' }, 'entityType', lexicalTypeMessage],
+    [
+      searchEntities,
+      { entityType: ' GeoASN ', entityCode: ` AS${'0'.repeat(5000)}123-000IR ` },
+      'entityCode',
+      lexicalCodeMessage,
+    ],
+    [
+      summarizeOutages,
+      { ...window, entityType: 'region', relatedToType: 'continent', relatedToCode: 'EU' },
+      'relatedToType',
+      lexicalTypeMessage,
+    ],
+    [getStatus, { entityType: ' ', entityCode: 'US' }, 'entityType', lexicalTypeMessage],
+    [
+      getSignals,
+      { ...window, entityType: 'asn', entityCode: '\t', source: 'bgp' },
+      'entityCode',
+      lexicalCodeMessage,
+    ],
+    [
+      findOutages,
+      { ...window, entityType: 'region', relatedToType: 'planet', relatedToCode: 'IR' },
+      'relatedToType',
+      lexicalTypeMessage,
+    ],
+    [
+      getAlerts,
+      { ...window, entityType: 'asn', relatedToType: 'geoasn', relatedToCode: '1-USA' },
+      'relatedToCode',
+      lexicalCodeMessage,
+    ],
+    [
+      summarizeOutages,
+      { ...window, entityType: 'country', entityCode: 'USA' },
+      'entityCode',
+      lexicalCodeMessage,
+    ],
+    [
+      searchEntities,
+      { entityType: 'country', query: '😀'.repeat(101) },
+      'query',
+      'Use a query of at most 200 UTF-16 code units after trimming, or omit query to list the entity type with ioda_search_entities.',
+    ],
+  ] as const)(
+    'rejects lexical fields through both surfaces before HTTP: %s %s',
+    async (definition, input, field, message) => {
+      network(() => envelope([]));
+      const result = await runToolContract(definition, input);
+      expect(calls).toHaveLength(0);
+      lexicalFailure(result, definition.name, field, message);
+    },
+  );
+  it.each([
+    [{ entityType: 'country', entityCode: '123' }, 'invalid_entity'],
+    [{ entityType: 'region', entityCode: 'AS123' }, 'invalid_entity'],
+    [{ entityType: 'asn', entityCode: '4294967296' }, 'invalid_entity'],
+    [{ entityType: 'geoasn', entityCode: '0-IR' }, 'invalid_entity'],
+    [{ entityType: 'asn', relatedToType: 'country', relatedToCode: '123' }, 'invalid_scope'],
+    [{ entityType: 'asn', relatedToType: 'country' }, 'invalid_scope'],
+    [{ entityType: 'country', entityCode: 'IR', query: 'Iran' }, 'conflicting_search'],
+  ] as const)('keeps semantic reason %s after lexical validation', async (input, reason) => {
+    network(() => {
+      throw new Error('unexpected network');
+    });
+    const result = await runToolContract(searchEntities, input);
+    const error = failure(result, JsonRpcErrorCode.ValidationError, reason);
+    expect(text(result)).toContain(`Error: ${error.message}`);
+    expect(calls).toHaveLength(0);
+  });
+
+  /** Fastest thread CPU of three ten-match batches after compiling the emitted pattern. */
+  function patternCpu(pattern: string, input: string) {
+    const regex = new RegExp(pattern);
+    regex.test(input);
+    let fastestUs = Number.POSITIVE_INFINITY;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const start = process.threadCpuUsage();
+      for (let match = 0; match < 10; match++) regex.test(input);
+      const used = process.threadCpuUsage(start);
+      fastestUs = Math.min(fastestUs, used.user + used.system);
+    }
+    return fastestUs;
+  }
+  it.each([
+    ['digits', 5000, (n: number) => '0'.repeat(n)],
+    ['digit suffix failure', 1250, (n: number) => `${'0'.repeat(n)}-`],
+    ['geoasn area suffix failure', 1250, (n: number) => `AS${'0'.repeat(n)}-${'0'.repeat(n)}!`],
+    ['query interior padding', 1250, (n: number) => `x${' '.repeat(n)}y`],
+    ['padding before failure', 1250, (n: number) => `${' '.repeat(n)}${'a'.repeat(201)}`],
+    ['long line ending in a break', 1250, (n: number) => `${'x'.repeat(n)}\ny`],
+    ['breaks throughout', 1250, (n: number) => `${' \r\n'.repeat(n)}x`],
+    ['blank padding', 1250, (n: number) => ' '.repeat(n)],
+  ])('lexical pattern CPU growth stays linear for %s over 64× input', (_, start, shape) => {
+    const patterns = new Set<string>();
+    for (const definition of definitions) {
+      const properties = z.toJSONSchema(definition.input).properties as Record<
+        string,
+        { pattern?: string; items?: { pattern?: string } }
+      >;
+      for (const property of Object.values(properties)) {
+        if (property.pattern) patterns.add(property.pattern);
+        if (property.items?.pattern) patterns.add(property.items.pattern);
+      }
+    }
+    for (const pattern of patterns) {
+      const samples: number[] = [];
+      for (let size = start; size <= start * 64; size *= 2) {
+        const cpuUs = patternCpu(pattern, shape(size));
+        expect(cpuUs, `${pattern} at ${size}`).toBeLessThan(250_000);
+        samples.push(cpuUs);
+      }
+      expect(samples).toHaveLength(7);
+      expect((samples[6] ?? 0) / Math.max(samples[0] ?? 0, 1), pattern).toBeLessThan(256);
+    }
+  });
 });
 afterEach(() => {
   disposeIodaService();
@@ -469,14 +720,14 @@ describe('served caps', () => {
         'ioda_find_outages',
         2000000,
         window,
-        'An event overlapping the window that began more than 1209600 seconds before from can be missing or reported with a later start. To search earlier starts, call ioda_find_outages at page 0 with from 1791746800, until 1792540800, extendWindowSeconds 1209600, and the other filters unchanged, then keep only the events whose until is after 1792537200.',
+        'An event overlapping the window that began more than 1209600 seconds before from can be missing or reported with a later start. To search earlier starts, call ioda_find_outages at page 0 with from 1791746800, until 1792540800, extendWindowSeconds 1209600, and the other filters unchanged, then keep only the events whose until is at or after 1792537200.',
       ],
       [
         'events over a full 31-day window: until moves back too, staying after from',
         'ioda_find_outages',
         12096000,
         month,
-        'An event overlapping the window that began more than 1209600 seconds before from can be missing or reported with a later start. To search earlier starts, call ioda_find_outages at page 0 with from 1787184001, until 1789862401, extendWindowSeconds 1209600, and the other filters unchanged, then keep only the events whose until is after 1789862400.',
+        'An event overlapping the window that began more than 1209600 seconds before from can be missing or reported with a later start. To search earlier starts, call ioda_find_outages at page 0 with from 1787184001, until 1789862401, extendWindowSeconds 1209600, and the other filters unchanged, then keep only the events whose until is at or after 1789862400.',
       ],
       [
         'alerts ending within 1209600 seconds of now: only the earlier side',
@@ -504,7 +755,7 @@ describe('served caps', () => {
         'ioda_summarize_outages',
         2000000,
         window,
-        "Events overlapping the window that began more than 1209600 seconds before from are not counted, or are counted from a later start. To check one entity for such an event, call ioda_find_outages with this entityType, that entity's code as entityCode, from 1791746800, until 1792540800, and extendWindowSeconds 1209600, then keep only the events whose until is after 1792537200.",
+        "Events overlapping the window that began more than 1209600 seconds before from are not counted, or are counted from a later start. To check one entity for such an event, call ioda_find_outages with this entityType, that entity's code as entityCode, from 1791746800, until 1792540800, and extendWindowSeconds 1209600, then keep only the events whose until is at or after 1792537200.",
       ],
     ] as const;
     it.each(tails)('%s', (_, tool, requested, bounds, tail) => {
@@ -620,7 +871,7 @@ describe('served caps', () => {
     expect(data.pagination).toEqual({ page: 0, limit: 100, returned: 0, more: 'no' });
     expect(data.truncated).toBeUndefined();
     expect(data.notice).toBe(
-      'limit 1000 exceeds the cap of 100; served 100. Every limit from 100 to 1000 serves the same pages. extendWindowSeconds 12096000 exceeds the cap of 1209600; served 1209600. An event overlapping the window that began more than 1209600 seconds before from can be missing or reported with a later start. To search earlier starts, call ioda_find_outages at page 0 with from 1789858801, until 1792537201, extendWindowSeconds 1209600, and the other filters unchanged, then keep only the events whose until is after 1792537200. No detected events were returned for this scope and window. Call ioda_get_signals for measurement coverage, or ioda_find_outages with a wider window or fewer filters. This is not an all-clear. IODA returns an empty page rather than an error for an unknown entityCode; call ioda_search_entities with the same entityType and entityCode to verify it.',
+      'limit 1000 exceeds the cap of 100; served 100. Every limit from 100 to 1000 serves the same pages. extendWindowSeconds 12096000 exceeds the cap of 1209600; served 1209600. An event overlapping the window that began more than 1209600 seconds before from can be missing or reported with a later start. To search earlier starts, call ioda_find_outages at page 0 with from 1789858801, until 1792537201, extendWindowSeconds 1209600, and the other filters unchanged, then keep only the events whose until is at or after 1792537200. No detected events were returned for this scope and window. Call ioda_get_signals for measurement coverage, or ioda_find_outages with a wider window or fewer filters. This is not an all-clear. IODA returns an empty page rather than an error for an unknown entityCode; call ioda_search_entities with the same entityType and entityCode to verify it.',
     );
   });
   it('serves over-cap alert limit and extension on a past-end page', async () => {
@@ -676,7 +927,9 @@ describe('served caps', () => {
     expect(query(calls[0])).toEqual({ ...seconds, datasource: 'bgp', maxPoints: '2000' });
     expect(data.applied).toEqual({ ...window, ...entityInput, source: 'bgp', maxPoints: 2000 });
     expect(data.series).toEqual([series]);
-    expect(data.notice).toBe(clamp);
+    expect(data.notice).toBe(
+      `${clamp} Coarse series aggregate underlying samples, so values need not equal an unweighted mean of finer returned buckets; a non-null aggregate cannot establish complete finer-resolution coverage. Request a narrower window with ioda_get_signals to inspect finer observations.`,
+    );
     network(() => envelope([[]]));
     data = parity(await runToolContract(getSignals, input));
     expect(data.notice).toBe(
@@ -857,7 +1110,7 @@ describe('event extension defaults by scope', () => {
       const data = parity(await runToolContract(findOutages, { ...window, ...filters }));
       expect(calls[0]?.searchParams.get('extendWindow')).toBe('1209600');
       expect(data.applied).toMatchObject({ extendWindowSeconds: 1209600, scope });
-      expect(data.notice).toBe(notice);
+      expect(rowGuidance(data.notice)).toBe(notice);
     },
   );
   it.each([0, 3600, 86400, 604800, 1209600])(
@@ -878,7 +1131,7 @@ describe('event extension defaults by scope', () => {
     expect(calls[0]?.searchParams.get('extendWindow')).toBe('1209600');
     expect(data.applied).toMatchObject({ extendWindowSeconds: 1209600, scope: 'global' });
     expect(data.notice).toBe(
-      `extendWindowSeconds 1209601 exceeds the cap of 1209600; served 1209600. An event overlapping the window that began more than 1209600 seconds before from can be missing or reported with a later start. To search earlier starts, call ioda_find_outages at page 0 with from 1792537199, until 1792540800, extendWindowSeconds 1209600, and the other filters unchanged, then keep only the events whose until is after 1792537200. ${zeroHit}`,
+      `extendWindowSeconds 1209601 exceeds the cap of 1209600; served 1209600. An event overlapping the window that began more than 1209600 seconds before from can be missing or reported with a later start. To search earlier starts, call ioda_find_outages at page 0 with from 1792537199, until 1792540800, extendWindowSeconds 1209600, and the other filters unchanged, then keep only the events whose until is at or after 1792537200. ${zeroHit}`,
     );
   });
 });
@@ -916,16 +1169,17 @@ describe('errors visible on both consumption paths', () => {
     );
   }
   it.each(['gtr', 'ucsd-nt', ' ', ' GTR '])(
-    'rejects unsupported numeric source %j with invalid_source rather than substituting a core measurement',
+    'rejects unsupported numeric source %j with invalid_arguments before HTTP',
     async (source) => {
       network(() => {
         throw new Error('unexpected network');
       });
       const result = await runToolContract(getSignals, { ...window, ...entityInput, source });
-      const error = failure(result, JsonRpcErrorCode.ValidationError, 'invalid_source');
-      expect(error.message).toBe('source must be bgp, ping-slash24, or merit-nt.');
-      expect(error.data?.recovery?.hint).toBe(
-        'Call ioda_get_signals with source bgp, ping-slash24, or merit-nt; for gtr detections, call ioda_find_outages or ioda_get_alerts with source gtr.',
+      const error = lexicalFailure(
+        result,
+        'ioda_get_signals',
+        'source',
+        'Use source bgp, ping-slash24, or merit-nt; for gtr detections call ioda_find_outages or ioda_get_alerts with source gtr.',
       );
       expect(text(result)).toContain(`Error: ${error.message}`);
       expect(calls).toHaveLength(0);
@@ -940,10 +1194,11 @@ describe('errors visible on both consumption paths', () => {
       ['ioda_get_alerts', await runToolContract(getAlerts, { ...window, source: 'ucsd-nt' })],
     ] as const;
     for (const [name, result] of results) {
-      const error = failure(result, JsonRpcErrorCode.ValidationError, 'invalid_source');
-      expect(error.message).toBe('source must be bgp, ping-slash24, merit-nt, or gtr.');
-      expect(error.data?.recovery?.hint).toBe(
-        `Call ${name} with source bgp, ping-slash24, merit-nt, or gtr, or omit source to search all sources.`,
+      const error = lexicalFailure(
+        result,
+        name,
+        'source',
+        'Call ioda_find_outages or ioda_get_alerts with source bgp, ping-slash24, merit-nt, or gtr, or omit source to search all sources.',
       );
       expect(text(result)).toContain(`Error: ${error.message}`);
     }
@@ -960,7 +1215,7 @@ describe('errors visible on both consumption paths', () => {
     expect(calls).toHaveLength(2);
     expect(calls.every((url) => !url.searchParams.has('datasource'))).toBe(true);
   });
-  it('rejects a 201-character query with invalid_query and serves 200 after trimming', async () => {
+  it('rejects a 201-character query with invalid_arguments and serves 200 after trimming', async () => {
     network(() => {
       throw new Error('unexpected network');
     });
@@ -968,10 +1223,11 @@ describe('errors visible on both consumption paths', () => {
       entityType: 'country',
       query: 'a'.repeat(201),
     });
-    const error = failure(result, JsonRpcErrorCode.ValidationError, 'invalid_query');
-    expect(error.message).toBe('query has 201 characters after trimming; the limit is 200.');
-    expect(error.data?.recovery?.hint).toBe(
-      'Call ioda_search_entities with a query of at most 200 characters, or omit query to list the entity type.',
+    const error = lexicalFailure(
+      result,
+      'ioda_search_entities',
+      'query',
+      'Use a query of at most 200 UTF-16 code units after trimming, or omit query to list the entity type with ioda_search_entities.',
     );
     expect(text(result)).toContain(`Error: ${error.message}`);
     expect(calls).toHaveLength(0);
@@ -1037,10 +1293,11 @@ describe('errors visible on both consumption paths', () => {
       JsonRpcErrorCode.ValidationError,
       'conflicting_search',
     );
-    failure(
+    lexicalFailure(
       await runToolContract(getStatus, { entityType: 'country', entityCode: 'USA' }),
-      JsonRpcErrorCode.ValidationError,
-      'invalid_entity',
+      'ioda_get_status',
+      'entityCode',
+      lexicalCodeMessage,
     );
     failure(
       await runToolContract(findOutages, { ...window, entityCode: 'US' }),
@@ -1081,7 +1338,7 @@ describe('errors visible on both consumption paths', () => {
     const error = failure(result, JsonRpcErrorCode.ValidationError, 'invalid_window');
     expect(error.message).toBe(message);
     expect(error.data?.recovery?.hint).toBe(
-      'Call ioda_get_alerts with integer Unix seconds from < until <= now and a window no longer than 31 days; split longer investigations into adjacent windows.',
+      'Call ioda_get_alerts with integer Unix seconds from < until <= now and a window no longer than 31 days; split longer investigations into adjacent windows; shared boundaries can duplicate detections.',
     );
     expect(text(result)).toContain(`Error: ${message}`);
     expect(calls).toHaveLength(0);
@@ -1559,7 +1816,7 @@ describe('unknown entity codes', () => {
         [() => runToolContract(getAlerts, input), alertsNotice],
       ] as const) {
         network(unknown);
-        expect(parity(await run()).notice).toBe(notice);
+        expect(rowGuidance(parity(await run()).notice)).toBe(notice);
       }
       expect(calls).toHaveLength(2);
     },
@@ -1592,7 +1849,7 @@ describe('unknown entity codes', () => {
     async (_, run, zeroHit) => {
       network(unknown);
       const data = parity(await run());
-      expect(data.notice).toBe(`${zeroHit} ${verifyScope}`);
+      expect(rowGuidance(data.notice)).toBe(`${zeroHit} ${verifyScope}`);
       expect(calls).toHaveLength(1);
       expect(calls[0]?.searchParams.get('relatedTo')).toBe('country/UK');
     },
@@ -1646,7 +1903,7 @@ describe('unknown entity codes', () => {
       ],
     ] as const) {
       network(unknown);
-      expect(parity(await run()).notice).toBe(
+      expect(rowGuidance(parity(await run()).notice)).toBe(
         `This page is empty. Call ${tool} with page 0 and unchanged filters, or return to the previous page.`,
       );
     }
@@ -1929,12 +2186,7 @@ describe('geoasn entity vocabulary', () => {
       ['ioda_get_alerts', await runToolContract(getAlerts, { ...window, ...code })],
     ] as const;
     for (const [name, result] of results) {
-      const error = failure(result, JsonRpcErrorCode.ValidationError, 'invalid_entity');
-      expect(error.message).toBe(grammar);
-      expect(error.data?.recovery?.hint).toBe(
-        `Call ioda_search_entities with entityType and query to resolve a country, region, ASN, or geoasn, then call ${name} with the selected entityType and a returned code as entityCode.`,
-      );
-      expect(text(result)).toContain(`Error: ${grammar}`);
+      lexicalFailure(result, name, 'entityCode', lexicalCodeMessage);
     }
     expect(calls).toHaveLength(0);
   });
@@ -2211,7 +2463,7 @@ describe('relatedTo scope', () => {
       relatedToCode: 'RU',
       scope: 'related',
     });
-    expect(data.notice).toBe(
+    expect(rowGuidance(data.notice)).toBe(
       'Another page may exist. Keep filters and limit fixed and use nextPage; restart at page 0 if changing limit.',
     );
 
@@ -2228,7 +2480,7 @@ describe('relatedTo scope', () => {
     expect(query(calls[1])).toMatchObject({ relatedTo: 'country/RU', page: '1', limit: '2' });
     expect(data.events).toEqual(russianEvents.slice(2));
     expect(data.pagination).toEqual({ page: 1, limit: 2, returned: 1, more: 'no' });
-    expect(data.notice).toBeUndefined();
+    expect(rowGuidance(data.notice)).toBeUndefined();
   });
   it('serves scoped alerts at page 0 and reports a full scoped page without nextPage', async () => {
     network(() => envelope(iranAlerts));
@@ -2242,7 +2494,7 @@ describe('relatedTo scope', () => {
     expect(data.alerts).toEqual(iranAlerts);
     expect(data.pagination).toEqual({ page: 0, limit: 2, returned: 2, more: 'possible' });
     expect(data.truncated).toEqual({ shown: 2, cap: 2 });
-    expect(data.notice).toBe(fullScopedPage);
+    expect(rowGuidance(data.notice)).toBe(fullScopedPage);
     expect(data.applied).toEqual({
       entityType: 'region',
       relatedToType: 'country',
@@ -2259,7 +2511,7 @@ describe('relatedTo scope', () => {
     network(() => envelope(iranAlerts));
     data = parity(await runToolContract(getAlerts, { ...window, ...regionScope }));
     expect(data.pagination).toEqual({ page: 0, limit: 20, returned: 2, more: 'no' });
-    expect(data.notice).toBeUndefined();
+    expect(rowGuidance(data.notice)).toBeUndefined();
     expect(data.truncated).toBeUndefined();
   });
   it('rejects a scoped alert page above 0 before HTTP with the page-0 route', async () => {
@@ -2439,8 +2691,6 @@ describe('outage summary ranking', () => {
     }),
   ];
   const recoveries = {
-    invalid_entity:
-      'Call ioda_summarize_outages with entityType country, region, asn, or geoasn; to score one entity, resolve it with ioda_search_entities and pass a returned code as entityCode.',
     invalid_scope:
       'Call ioda_summarize_outages with entityType, both relatedToType and relatedToCode (country, region, asn, or geoasn and its code), and no entityCode, or omit both scope fields; resolve the scope code with ioda_search_entities.',
   };
@@ -2455,6 +2705,7 @@ describe('outage summary ranking', () => {
       'until',
       'limit',
       'page',
+      'ignoreMethods',
       'extendWindowSeconds',
     ]);
     expect(summarizeOutages.input.parse({ ...window, entityType: 'country' })).toEqual({
@@ -2645,7 +2896,7 @@ describe('outage summary ranking', () => {
       more: 'possible',
       nextPage: 1,
     });
-    expect(data.notice).toBe(nextPage);
+    expect(rowGuidance(data.notice)).toBe(nextPage);
 
     network(() => envelope(iranRegions.slice(2)));
     data = parity(
@@ -2660,7 +2911,7 @@ describe('outage summary ranking', () => {
     );
     expect(query(calls[2])).toMatchObject({ relatedTo: 'country/IR', limit: '2', page: '1' });
     expect(data.pagination).toEqual({ page: 1, limit: 2, returned: 1, more: 'no' });
-    expect(data.notice).toBeUndefined();
+    expect(rowGuidance(data.notice)).toBeUndefined();
   });
   it.each([
     [
@@ -2692,7 +2943,7 @@ describe('outage summary ranking', () => {
       more: 'no',
     });
     expect(data.truncated).toBeUndefined();
-    expect(data.notice).toBe(notice);
+    expect(rowGuidance(data.notice)).toBe(notice);
   });
   it('sends an explicit zero extension unchanged', async () => {
     network(() => envelope([]));
@@ -2740,7 +2991,7 @@ describe('outage summary ranking', () => {
     expect(query(calls[1])).toMatchObject({ limit: '100', extendWindow: '1209600', page: '2' });
     expect(data.applied).toMatchObject({ limit: 100, extendWindowSeconds: 1209600, page: 2 });
     expect(data.notice).toBe(
-      `limit 1000 exceeds the cap of 100; served 100. Page 2 starts after the first 200 records. Every limit from 100 to 1000 serves the same pages. extendWindowSeconds 12096000 exceeds the cap of 1209600; served 1209600. Events overlapping the window that began more than 1209600 seconds before from are not counted, or are counted from a later start. To check one entity for such an event, call ioda_find_outages with this entityType, that entity's code as entityCode, from 1789858801, until 1792537201, and extendWindowSeconds 1209600, then keep only the events whose until is after 1792537200. ${pastEnd}`,
+      `limit 1000 exceeds the cap of 100; served 100. Page 2 starts after the first 200 records. Every limit from 100 to 1000 serves the same pages. extendWindowSeconds 12096000 exceeds the cap of 1209600; served 1209600. Events overlapping the window that began more than 1209600 seconds before from are not counted, or are counted from a later start. To check one entity for such an event, call ioda_find_outages with this entityType, that entity's code as entityCode, from 1789858801, until 1792537201, and extendWindowSeconds 1209600, then keep only the events whose until is at or after 1792537200. ${pastEnd}`,
     );
   });
   it.each([
@@ -2779,49 +3030,37 @@ describe('outage summary ranking', () => {
     expect(calls).toHaveLength(0);
   });
   it.each([
-    [{ entityType: '  ' }, 'entityType must be country, region, asn, or geoasn.'],
-    [{ entityType: 'continent' }, 'entityType must be country, region, asn, or geoasn.'],
-    [{ entityType: ' ', entityCode: 'IR' }, 'entityCode requires entityType.'],
+    [{ entityType: '  ' }, 'entityType', lexicalTypeMessage],
+    [{ entityType: 'continent' }, 'entityType', lexicalTypeMessage],
+    [{ entityType: ' ', entityCode: 'IR' }, 'entityType', lexicalTypeMessage],
     [
       { entityType: ' ', relatedToType: 'country', relatedToCode: 'IR' },
-      'entityType must be country, region, asn, or geoasn.',
+      'entityType',
+      lexicalTypeMessage,
     ],
-    [
-      { entityType: 'country', entityCode: 'IRN' },
-      'Country codes require exactly two ASCII letters; resolve names with ioda_search_entities.',
-    ],
-    [
-      { entityType: 'geoasn', entityCode: '40934-USA' },
-      'geoasn codes are an ASN, a hyphen, and a numeric region code or two-letter country code, such as 40934-576 or 59962-IR; resolve names with ioda_search_entities.',
-    ],
-  ])('rejects entity %j with invalid_entity before HTTP', async (input, message) => {
-    network(() => {
-      throw new Error('unexpected network');
-    });
-    const result = await runToolContract(summarizeOutages, { ...window, ...input });
-    const error = failure(result, JsonRpcErrorCode.ValidationError, 'invalid_entity');
-    expect(error.message).toBe(message);
-    expect(error.data?.recovery?.hint).toBe(recoveries.invalid_entity);
-    expect(text(result)).toContain(`Error: ${message}`);
-    expect(calls).toHaveLength(0);
-  });
+    [{ entityType: 'country', entityCode: 'IRN' }, 'entityCode', lexicalCodeMessage],
+    [{ entityType: 'geoasn', entityCode: '40934-USA' }, 'entityCode', lexicalCodeMessage],
+  ])(
+    'rejects lexical entity %j with invalid_arguments before HTTP',
+    async (input, field, message) => {
+      network(() => {
+        throw new Error('unexpected network');
+      });
+      const result = await runToolContract(summarizeOutages, { ...window, ...input });
+      lexicalFailure(result, 'ioda_summarize_outages', field, message);
+      expect(calls).toHaveLength(0);
+    },
+  );
   it('answers a blank entityType with a scope as search does, while find_outages keeps the scope error', async () => {
     network(() => {
       throw new Error('unexpected network');
     });
     const blank = { entityType: ' ', relatedToType: 'country', relatedToCode: 'IR' };
-    const unsupported = 'entityType must be country, region, asn, or geoasn.';
-    for (const [result, recovery] of [
-      [
-        await runToolContract(searchEntities, blank),
-        'Call ioda_search_entities with entityType and query to resolve a country, region, ASN, or geoasn, then call ioda_search_entities with the selected entityType and a returned code as entityCode.',
-      ],
-      [await runToolContract(summarizeOutages, { ...window, ...blank }), recoveries.invalid_entity],
+    for (const [name, result] of [
+      ['ioda_search_entities', await runToolContract(searchEntities, blank)],
+      ['ioda_summarize_outages', await runToolContract(summarizeOutages, { ...window, ...blank })],
     ] as const) {
-      const error = failure(result, JsonRpcErrorCode.ValidationError, 'invalid_entity');
-      expect(error.message).toBe(unsupported);
-      expect(error.data?.recovery?.hint).toBe(recovery);
-      expect(text(result)).toContain(`Error: ${unsupported}`);
+      lexicalFailure(result, name, 'entityType', lexicalTypeMessage);
     }
     const events = failure(
       await runToolContract(findOutages, { ...window, ...blank }),
@@ -2841,10 +3080,6 @@ describe('outage summary ranking', () => {
     [
       { entityType: 'region', relatedToCode: 'IR' },
       'relatedToType and relatedToCode go together; provide both, or omit both for no scope.',
-    ],
-    [
-      { entityType: 'region', relatedToType: 'continent', relatedToCode: 'EU' },
-      'relatedToType must be country, region, asn, or geoasn.',
     ],
     [
       { entityType: 'asn', relatedToType: 'region', relatedToCode: '0' },
@@ -2877,7 +3112,7 @@ describe('outage summary ranking', () => {
     const error = failure(result, JsonRpcErrorCode.ValidationError, 'invalid_window');
     expect(error.message).toBe('from 1792540800 is not before until 1792537200.');
     expect(error.data?.recovery?.hint).toBe(
-      'Call ioda_summarize_outages with integer Unix seconds from < until <= now and a window no longer than 31 days; split longer investigations into adjacent windows.',
+      'Call ioda_summarize_outages with integer Unix seconds from < until <= now and a window no longer than 31 days; split longer investigations into adjacent windows; shared boundaries can duplicate detections.',
     );
     expect(calls).toHaveLength(0);
   });

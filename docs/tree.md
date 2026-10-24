@@ -1,6 +1,6 @@
 # ioda-outages-mcp-server - Directory Structure
 
-Generated on: 2026-10-21 08:58:08
+Generated on: 2026-10-24 21:06:21
 
 ```text
 ioda-outages-mcp-server/
@@ -156,6 +156,8 @@ ioda-outages-mcp-server/
 │   │       └── types.ts
 │   └── index.ts
 ├── tests/
+│   ├── fixtures/
+│   │   └── outage-contracts.json
 │   ├── integration/
 │   │   └── investigation.test.ts
 │   ├── services/
@@ -164,7 +166,8 @@ ioda-outages-mcp-server/
 │   ├── smoke/
 │   │   └── registration.test.ts
 │   └── tools/
-│       └── contracts.test.ts
+│       ├── contracts.test.ts
+│       └── outage-semantics.test.ts
 ├── .dockerignore
 ├── .env.example
 ├── .gitattributes

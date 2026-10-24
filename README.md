@@ -7,7 +7,7 @@
 
 <div align="center">
 
-[![Version](https://img.shields.io/badge/Version-0.2.0-blue.svg?style=flat-square)](./CHANGELOG.md) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Docker](https://img.shields.io/badge/Docker-ghcr.io-2496ED?style=flat-square&logo=docker&logoColor=white)](https://github.com/users/cyanheads/packages/container/package/ioda-outages-mcp-server) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^2.3.1-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![npm](https://img.shields.io/npm/v/@cyanheads/ioda-outages-mcp-server?style=flat-square&logo=npm&logoColor=white)](https://www.npmjs.com/package/@cyanheads/ioda-outages-mcp-server) [![TypeScript](https://img.shields.io/badge/TypeScript-^7.0.2-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.4.3-blueviolet.svg?style=flat-square)](https://bun.sh/)
+[![Version](https://img.shields.io/badge/Version-0.2.0-blue.svg?style=flat-square)](./CHANGELOG.md) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Docker](https://img.shields.io/badge/Docker-ghcr.io-2496ED?style=flat-square&logo=docker&logoColor=white)](https://github.com/users/cyanheads/packages/container/package/ioda-outages-mcp-server) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^2.3.1-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![npm](https://img.shields.io/npm/v/@cyanheads/ioda-outages-mcp-server?style=flat-square&logo=npm&logoColor=white)](https://www.npmjs.com/package/@cyanheads/ioda-outages-mcp-server) [![TypeScript](https://img.shields.io/badge/TypeScript-^7.0.2-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.4.4-blueviolet.svg?style=flat-square)](https://bun.sh/)
 
 </div>
 
@@ -19,11 +19,17 @@
 
 </div>
 
+<div align="center">
+
+**Public Hosted Server:** [https://ioda-outages.caseyjhand.com/mcp](https://ioda-outages.caseyjhand.com/mcp)
+
+</div>
+
 ---
 
 ## Overview
 
-Internet outage evidence from [IODA](https://ioda.inetintel.cc.gatech.edu/), using its public v2 API. Resolve countries, regions, and autonomous systems; inspect recent detections and measurement coverage; then investigate events, alert transitions, per-entity outage rankings, and numeric signals. Runs over stdio or stateless Streamable HTTP without an API key.
+Internet outage evidence from [IODA](https://ioda.inetintel.cc.gatech.edu/), using its public v2 API. Resolve countries, regions, and autonomous systems; inspect recent detections and measurement coverage; then investigate events, alert transitions, per-entity outage rankings, and numeric signals. Runs over stdio, stateless Streamable HTTP, or the public hosted endpoint above, without an API key.
 
 ### Tools
 
@@ -40,8 +46,8 @@ Internet outage evidence from [IODA](https://ioda.inetintel.cc.gatech.edu/), usi
 
 ### `ioda_search_entities` <sub>tool</sub>
 
-- Required `entityType: country | region | asn | geoasn` (a geoasn is one ASN within a region or country); choose `query` (up to 200 trimmed characters) or `entityCode`, or omit both to list the type. Country codes use two letters, regions use IODA numeric codes, ASNs use decimal digits, and geoasns join an ASN and a region or country code (`40934-576`, `59962-IR`).
-- Optional `relatedToType` and `relatedToCode` list `entityType` entities within one country, region, ASN, or geoasn, such as the regions or networks of a country; both or neither, `entityType` required, no `entityCode`, and a scope combines with `query`. A very large scope (thousands of networks in one country) can be incomplete; prefer region scopes there.
+- Required `entityType: country | region | asn | geoasn` (a geoasn is one ASN within a region or country); choose `query` (up to 200 UTF-16 code units after trimming) or `entityCode`, or omit both to list the type. Country codes use two letters, regions use IODA numeric codes, ASNs use decimal digits, and geoasns join an ASN and a region or country code (`40934-576`, `59962-IR`).
+- Optional `relatedToType` and `relatedToCode` list `entityType` entities within one country, region, ASN, or geoasn; both or neither, `entityType` required, no `entityCode`, and a scope combines with `query`. Page this resolver to select codes for individual outage investigations.
 - `limit` is 1–1,000, default 20, served at most 100; `page` starts at 0. Returns original `entities`, `pagination`, and `provenance`; a metadata match does not establish measurement coverage.
 
 ---
@@ -74,7 +80,7 @@ Internet outage evidence from [IODA](https://ioda.inetintel.cc.gatech.edu/), usi
 ### `ioda_get_signals` <sub>tool</sub>
 
 - Required entity pair (`entityType` may be `geoasn`), `from`, `until`, and `source: bgp | ping-slash24 | merit-nt` (`gtr` and `ucsd-nt` are not numeric sources here). `maxPoints` is 1–20,000, default 200, served at most 2,000: an upstream aggregation target, not a hard returned-sample cap.
-- Returns every numeric subtype in `series`, source-specific `semantics` (measurement, IODA's `unit`, caveat), and `provenance`. An unknown country, region, or geoasn code fails with `entity_not_found`. `from`, `until`, `step`, `nativeStep`, and nulls preserve aligned bucket boundaries and missing observations; smaller targets lose temporal resolution.
+- Returns every numeric subtype in `series`, source-specific `semantics` (measurement, IODA's `unit`, caveat), and `provenance`. An unknown country, region, or geoasn code fails with `entity_not_found`. Returned `until` is an exclusive bucket bound; alignment can extend beyond requested bounds. Coarse series carry a notice: values need not equal an unweighted mean of finer returned buckets, and non-null aggregates cannot establish complete finer-resolution coverage. Values, nulls, and units remain unchanged; status coverage stays `unknown` for coarse series.
 
 ---
 
@@ -90,7 +96,9 @@ Built on [`@cyanheads/mcp-ts-core`](https://github.com/cyanheads/mcp-ts-core): s
 IODA-specific:
 
 - Keyless reads from a fixed HTTPS API origin; no local database or native helper.
-- Historical windows use integer Unix seconds UTC: `from < until <= now`, at most 31 days. Split longer investigations into adjacent windows.
+- Historical windows use integer Unix seconds UTC: `from < until <= now`, at most 31 days. Alerts include transitions at both bounds (widened by extension); events and summaries include starts at `until`. Adjacent windows can duplicate boundary detections. Signal bounds describe aligned buckets; status echoes the requested window across components with different selection rules.
+- `ignoreMethods: string[]` on events, alerts, and rankings excludes detections upstream before event construction and scoring: `source.method`, `source.*`, or `*.method`, with sources `bgp`, `ping-slash24`, `merit-nt`, and `gtr`. Case/whitespace normalize and duplicates collapse; an empty array excludes nothing. Malformed terms and `*.*` fail `invalid_arguments`; an explicit `source` plus its own `source.*` fails `invalid_ignore_methods`. Keep exclusions fixed across pages and ranking drill-downs; provider scores and order are preserved.
+- Every related-scope outage response warns that membership coverage is unverified, even on short or empty pages. Page `ioda_search_entities` with the same entity type, scope, and limit, then query selected codes individually with the original window, source/exclusions, extension, and paging limit; each response supplies the concrete calls. `pagination.more` describes row pages, not scope completeness.
 - Pagination is zero-based; follow `nextPage` with filters and `limit` unchanged. `more: "possible"` signals possible continuation, not a known total; restart at page 0 after changing the limit.
 - Numeric inputs accept up to ten times their served cap (`limit` 100, `maxPoints` 2,000, `lookbackHours` 24, `extendWindowSeconds` 1,209,600); a larger value is served at the cap and a notice names the requested value, the served value, and the route to the rest. Minimums and values above the accepted maximum fail argument validation.
 - Shared request pacing allows one in-flight request and at least two seconds between starts, with a 45-second invocation deadline. Avoid concurrent investigations.
@@ -103,6 +111,45 @@ Agent-friendly output:
 - Complete, bounded responses — `content[]` and `structuredContent` carry the same data, enrichment included. Upstream bodies cap at 2 MiB and the combined response at 96 KiB; past that, `response_too_large` names a smaller call instead of dropping records.
 
 ## Getting started
+
+### Public Hosted Instance
+
+A public instance is available at `https://ioda-outages.caseyjhand.com/mcp` — no installation required. It serves Streamable HTTP; each client takes its own config shape.
+
+For Claude Code:
+
+```sh
+claude mcp add --transport http ioda-outages-mcp-server https://ioda-outages.caseyjhand.com/mcp
+```
+
+For Cline (`cline_mcp_settings.json`):
+
+```json
+{
+  "mcpServers": {
+    "ioda-outages-mcp-server": {
+      "type": "streamableHttp",
+      "url": "https://ioda-outages.caseyjhand.com/mcp"
+    }
+  }
+}
+```
+
+For Cursor (`mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "ioda-outages-mcp-server": {
+      "url": "https://ioda-outages.caseyjhand.com/mcp"
+    }
+  }
+}
+```
+
+Claude Desktop adds remote servers under Settings → Connectors.
+
+### Self-Hosted / Local
 
 Add the following to your MCP client configuration file. IODA requires no API key.
 

@@ -4,6 +4,7 @@
  */
 import { type Context, z } from '@cyanheads/mcp-ts-core';
 import { JsonRpcErrorCode, validationError } from '@cyanheads/mcp-ts-core/errors';
+import { markdownLink } from '@cyanheads/mcp-ts-core/utils';
 import { cancelledError, type IodaTool, iodaError } from '@/services/ioda/errors.js';
 import {
   type EntityReference,
@@ -17,6 +18,7 @@ import {
   type Source,
   SourceSchema,
 } from '@/services/ioda/index.js';
+import type { AlertRequest, EventRequest, SummaryRequest } from '@/services/ioda/types.js';
 
 /**
  * The largest value one call serves. Each schema `.max()` admits ten times its cap;
@@ -29,40 +31,112 @@ export const SERVED_CAPS = {
   extendWindowSeconds: 1209600,
 } as const;
 
+/** Flag-free grammars preserve case and padding in the advertised JSON Schema. */
+const inputGrammars = {
+  type: '[cC][oO][uU][nN][tT][rR][yY]|[rR][eE][gG][iI][oO][nN]|[aA][sS][nN]|[gG][eE][oO][aA][sS][nN]',
+  code: '[a-zA-Z]{2}|(?:[aA][sS])?[0-9]+(?:-(?:[0-9]+|[a-zA-Z]{2}))?',
+  numericSource:
+    '[bB][gG][pP]|[pP][iI][nN][gG]-[sS][lL][aA][sS][hH]24|[mM][eE][rR][iI][tT]-[nN][tT]',
+};
+/** Blank and nonblank branches never split the same whitespace run between quantifiers. */
+function inputPattern(grammar: string, optionalBlank: boolean): RegExp {
+  const nonblank = `\\s*(?:${grammar})\\s*`;
+  return new RegExp(`^(?:${optionalBlank ? `\\s*|${nonblank}` : nonblank})$(?![\\s\\S])`);
+}
+const typeMessage =
+  'Call ioda_search_entities with entityType country, region, asn, or geoasn; case and surrounding whitespace are accepted.';
+const codeMessage =
+  'Use two country letters, decimal region digits, an optionally AS-prefixed ASN, or an ASN joined by a hyphen to region digits or two country letters; call ioda_search_entities to resolve a code.';
+const entityDescriptions = {
+  type: 'country, region, asn, or geoasn (one ASN within a region or country); whitespace and case are normalized.',
+  code: 'Two-letter country code, IODA numeric region code, decimal ASN (AS prefix accepted), or geoasn code joining an ASN and a region or country code (40934-576, 59962-IR); resolve names with ioda_search_entities and pass a returned code here.',
+};
+/** Optional query grammar measures UTF-16 code units between the first and last non-whitespace. */
+export const queryInput = z
+  .string()
+  .regex(
+    /^(?:\s*|\s*\S(?:[\s\S]{0,198}\S)?\s*)$(?![\s\S])/,
+    'Use a query of at most 200 UTF-16 code units after trimming, or omit query to list the entity type with ioda_search_entities.',
+  )
+  .optional()
+  .describe(
+    'Name substring, trimmed to at most 200 UTF-16 code units; blank is omitted. Mutually exclusive with entityCode.',
+  );
+/** Exactly one numeric source; detections from gtr are available through the event tools. */
+export const numericSourceInput = z
+  .string()
+  .regex(
+    inputPattern(inputGrammars.numericSource, false),
+    'Use source bgp, ping-slash24, or merit-nt; for gtr detections call ioda_find_outages or ioda_get_alerts with source gtr.',
+  )
+  .describe(
+    'Exactly bgp, ping-slash24, or merit-nt; case and whitespace normalized. gtr and ucsd-nt are not supported numeric sources.',
+  );
+
 /** Transport strings admit the canonicalization promised to callers. */
 export const entityInputs = {
   entityType: z
     .string()
-    .describe(
-      'country, region, asn, or geoasn (one ASN within a region or country); whitespace and case are normalized.',
-    ),
+    .regex(inputPattern(inputGrammars.type, false), typeMessage)
+    .describe(entityDescriptions.type),
   entityCode: z
     .string()
-    .describe(
-      'Two-letter country code, IODA numeric region code, decimal ASN (AS prefix accepted), or geoasn code joining an ASN and a region or country code (40934-576, 59962-IR); resolve names with ioda_search_entities and pass a returned code here.',
-    ),
+    .regex(inputPattern(inputGrammars.code, false), codeMessage)
+    .describe(entityDescriptions.code),
 };
 /** Optional filters explicitly allow global scope. */
 export const filterInputs = {
-  entityType: entityInputs.entityType.optional(),
-  entityCode: entityInputs.entityCode.optional(),
+  entityType: z
+    .string()
+    .regex(inputPattern(inputGrammars.type, true), typeMessage)
+    .optional()
+    .describe(entityDescriptions.type),
+  entityCode: z
+    .string()
+    .regex(inputPattern(inputGrammars.code, true), codeMessage)
+    .optional()
+    .describe(entityDescriptions.code),
   source: z
     .string()
+    .regex(
+      inputPattern(`${inputGrammars.numericSource}|[gG][tT][rR]`, true),
+      'Call ioda_find_outages or ioda_get_alerts with source bgp, ping-slash24, merit-nt, or gtr, or omit source to search all sources.',
+    )
     .optional()
     .describe(
       'bgp, ping-slash24, merit-nt, or gtr; blank means all sources. Case and whitespace are normalized.',
     ),
 };
+/** Upstream exclusions accept one source or method wildcard, never both. */
+export const ignoreMethodsInput = z
+  .array(
+    z
+      .string()
+      .regex(
+        inputPattern(
+          `(?:(?:${inputGrammars.numericSource}|[gG][tT][rR])\\.(?:\\*|[^\\s.,|*]+)|\\*\\.[^\\s.,|*]+)`,
+          false,
+        ),
+        'Use <source>.<method>, <source>.*, or *.<method> with source bgp, ping-slash24, merit-nt, or gtr; supply separate ignoreMethods array entries, without commas, pipes, or *.*.',
+      )
+      .describe('One detection method exclusion; case and surrounding whitespace are normalized.'),
+  )
+  .optional()
+  .describe(
+    'Detection methods to exclude upstream before event construction and scoring; duplicates are removed, and an empty array excludes nothing. Keep fixed across ranking and drill-down calls.',
+  );
 /** An optional scope listing entityType entities related to one other entity. */
 export const scopeInputs = {
   relatedToType: z
     .string()
+    .regex(inputPattern(inputGrammars.type, true), typeMessage)
     .optional()
     .describe(
-      'Scope type: country, region, asn, or geoasn. With relatedToCode, returns only entityType entities related to that entity, such as the regions or networks of one country. Requires entityType and excludes entityCode; blank is omitted. IODA evaluates a bounded related set, so a very large scope (thousands of networks in one country) can be incomplete; prefer region scopes there.',
+      'Scope type: country, region, asn, or geoasn. With relatedToCode, returns entityType entities related to that entity, such as the regions or networks of one country. Requires entityType and excludes entityCode; blank is omitted. Outage membership coverage is unverified independently of row pagination; page ioda_search_entities and query selected codes individually.',
     ),
   relatedToCode: z
     .string()
+    .regex(inputPattern(inputGrammars.code, true), codeMessage)
     .optional()
     .describe(
       'Scope entity code, normalized like entityCode for relatedToType (IR, 1829, AS42337, 60627-IR); resolve names with ioda_search_entities. Provide with relatedToType.',
@@ -97,7 +171,18 @@ export const windowInputs = {
     .number()
     .int()
     .positive()
-    .describe('Exclusive Unix seconds UTC, after from and no later than now.'),
+    .describe(
+      'Inclusive Unix seconds UTC for transition/event-start selection, after from and no later than now; adjacent windows can duplicate boundary detections.',
+    ),
+};
+/** Requested signal bounds differ from the aligned returned bucket interval. */
+export const signalWindowInputs = {
+  from: windowInputs.from.describe(
+    'Requested start Unix seconds UTC; window at most 31 days. Aligned returned buckets may begin earlier.',
+  ),
+  until: windowInputs.until.describe(
+    'Requested end Unix seconds UTC, after from and no later than now. Returned bucket bounds are exclusive and may extend beyond this requested bound due to alignment.',
+  ),
 };
 /** Required canonical request echo with optional result guidance. */
 export const enrichment = {
@@ -126,24 +211,13 @@ export function invocationClock(): { now: number; deadline: number } {
 function optionalText(value: string | undefined): string | undefined {
   return value?.trim() || undefined;
 }
-/** Validate search length after optional blank normalization; invalid_query supplies recovery. */
+/** Normalize the query after its transport schema checked the trimmed length. */
 export function searchQuery(value: string | undefined): string | undefined {
-  const query = optionalText(value);
-  if (query && query.length > 200)
-    throw validationError(
-      `query has ${query.length} characters after trimming; the limit is 200.`,
-      { reason: 'invalid_query' },
-    );
-  return query;
+  return optionalText(value);
 }
-/** Require exactly one numeric measurement source; invalid_source supplies recovery. */
+/** Canonicalize a numeric source admitted by its transport grammar. */
 export function numericSource(value: string): NumericSource {
-  const parsed = NumericSourceSchema.safeParse(value.trim().toLowerCase());
-  if (!parsed.success)
-    throw validationError('source must be bgp, ping-slash24, or merit-nt.', {
-      reason: 'invalid_source',
-    });
-  return parsed.data;
+  return NumericSourceSchema.parse(value.trim().toLowerCase());
 }
 /** Each tool's declared invalid_entity contract supplies the recovery hint. */
 function invalidEntity(message: string) {
@@ -257,16 +331,23 @@ export function requiredEntity(input: { entityType: string; entityCode: string }
     throw invalidEntity('Both entityType and entityCode are required.');
   return { entityType: parsed.entityType, entityCode: parsed.entityCode };
 }
-/** Normalize event/alert source names without substitution; invalid_source supplies recovery. */
+/** Normalize event/alert source names admitted by the transport grammar without substitution. */
 export function sourceFilter(value: string | undefined): Source | undefined {
   const text = optionalText(value)?.toLowerCase();
   if (!text) return undefined;
-  const parsed = SourceSchema.safeParse(text);
-  if (!parsed.success)
-    throw validationError('source must be bgp, ping-slash24, merit-nt, or gtr.', {
-      reason: 'invalid_source',
+  return SourceSchema.parse(text);
+}
+/** Normalize exclusions without filtering or recomputing any provider records. */
+export function ignoredMethods(
+  values: string[] | undefined,
+  source?: Source,
+): string[] | undefined {
+  const methods = values && [...new Set(values.map((value) => value.trim().toLowerCase()))];
+  if (source && methods?.includes(`${source}.*`))
+    throw validationError(`source ${source} conflicts with ignoreMethods ${source}.*.`, {
+      reason: 'invalid_ignore_methods',
     });
-  return parsed.data;
+  return methods;
 }
 /** Millisecond timestamps have exceeded this since 1973; Unix seconds reach it in year 5138. */
 const MILLISECOND_BOUND = 100_000_000_000;
@@ -355,7 +436,7 @@ export function clampExtendWindow(
     const shift = Math.min(requested - cap, MAX_WINDOW_SECONDS - 1);
     const from = window.from - shift;
     const earlier = `from ${from}, until ${Math.min(window.until, from + MAX_WINDOW_SECONDS)}`;
-    const keep = `then keep only the events whose until is after ${window.from}.`;
+    const keep = `then keep only the events whose until is at or after ${window.from}.`;
     if (tool === 'ioda_find_outages')
       return `An event overlapping the window that began more than ${cap} seconds before from can be missing or reported with a later start. To search earlier starts, call ioda_find_outages at page 0 with ${earlier}, extendWindowSeconds ${cap}, and the other filters unchanged, ${keep}`;
     if (tool === 'ioda_summarize_outages')
@@ -426,10 +507,7 @@ export function renderOutput(value: unknown): { type: 'text'; text: string }[] {
   if (output.provenance) endpoints.push(output.provenance.endpoint);
   for (const component of output.components ?? [])
     if (component.provenance) endpoints.push(component.provenance.endpoint);
-  const links = endpoints.map(
-    (url) =>
-      `[IODA endpoint](<${url.replace(/[<>\s\\]/g, (character) => encodeURIComponent(character))}>)`,
-  );
+  const links = endpoints.map((url) => markdownLink('IODA endpoint', url));
   return [
     {
       type: 'text',
@@ -455,6 +533,17 @@ export const unknownCodeNotice =
 /** Empty first-page guidance for a relatedTo scope: IODA lists nothing within an unknown scope code. */
 export const unknownScopeNotice =
   'IODA returns an empty page rather than an error for an unknown relatedToCode; call ioda_search_entities with relatedToType as entityType and relatedToCode as entityCode to verify it.';
+/** Membership completeness is independent of returned outage-row page exhaustion. */
+export function relatedMembershipNotice(
+  tool: 'ioda_find_outages' | 'ioda_get_alerts' | 'ioda_summarize_outages',
+  request: AlertRequest | EventRequest | SummaryRequest,
+): string | undefined {
+  const { entityType, relatedToType, relatedToCode, page: _page, limit, ...filters } = request;
+  if (!relatedToType) return;
+  const search = { entityType, relatedToType, relatedToCode, page: 0, limit };
+  const individual = { entityType, entityCode: '<returned code>', ...filters, page: 0, limit };
+  return `Membership coverage is unverified: IODA evaluates a bounded related set, so members can be omitted even when pagination.more is no. Row pagination does not establish complete scope coverage. Page ioda_search_entities with ${JSON.stringify(search)}, keeping the same scope and limit while increasing page; then remove relatedToType and relatedToCode and call ${tool} for each selected code with ${JSON.stringify(individual)}, keeping all filters and limit fixed across its pages.`;
+}
 /**
  * The single notice path for every tool. Parts join in the order given — served-cap and
  * served-default disclosures first, then result guidance. A full page reports `truncated`

@@ -19,9 +19,11 @@ import {
   entityFilter,
   entityInputs,
   entityType,
+  filterInputs,
   finish,
   invocationClock,
   pageInputs,
+  queryInput,
   relatedScope,
   renderOutput,
   scopeInputs,
@@ -40,13 +42,8 @@ export const searchEntities = tool('ioda_search_entities', {
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: true },
   input: z.object({
     entityType: entityInputs.entityType,
-    entityCode: entityInputs.entityCode.optional(),
-    query: z
-      .string()
-      .optional()
-      .describe(
-        'Name substring, trimmed to at most 200 characters; blank is omitted. Mutually exclusive with entityCode.',
-      ),
+    entityCode: filterInputs.entityCode,
+    query: queryInput,
     ...scopeInputs,
     ...pageInputs,
   }),
@@ -58,7 +55,7 @@ export const searchEntities = tool('ioda_search_entities', {
       reason: 'invalid_entity',
       code: JsonRpcErrorCode.ValidationError,
       thrownBy: 'service',
-      when: 'Invalid entity type, code, or incomplete pair.',
+      when: 'entityCode is incompatible with entityType, zero or out of range.',
       recovery:
         'Call ioda_search_entities with entityType and query to resolve a country, region, ASN, or geoasn, then call ioda_search_entities with the selected entityType and a returned code as entityCode.',
     },
@@ -73,17 +70,9 @@ export const searchEntities = tool('ioda_search_entities', {
       reason: 'invalid_scope',
       code: JsonRpcErrorCode.ValidationError,
       thrownBy: 'service',
-      when: 'relatedToType and relatedToCode are incomplete, unsupported, or malformed, or a scope comes with entityCode.',
+      when: 'relatedToType and relatedToCode are incomplete or incompatible, the code is zero or out of range, or a scope comes with entityCode.',
       recovery:
         'Call ioda_search_entities with entityType, both relatedToType and relatedToCode (country, region, asn, or geoasn and its code), and no entityCode, or omit both scope fields.',
-    },
-    {
-      reason: 'invalid_query',
-      code: JsonRpcErrorCode.ValidationError,
-      thrownBy: 'service',
-      when: 'query is longer than 200 characters after trimming.',
-      recovery:
-        'Call ioda_search_entities with a query of at most 200 characters, or omit query to list the entity type.',
     },
     {
       reason: 'upstream_bad_request',

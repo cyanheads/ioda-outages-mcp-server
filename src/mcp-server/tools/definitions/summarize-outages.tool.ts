@@ -20,9 +20,13 @@ import {
   entityFilter,
   entityInputs,
   entityType,
+  filterInputs,
   finish,
+  ignoredMethods,
+  ignoreMethodsInput,
   invocationClock,
   pageInputs,
+  relatedMembershipNotice,
   relatedScope,
   renderOutput,
   SERVED_CAPS,
@@ -42,14 +46,15 @@ const Output = z.object({
 });
 export const summarizeOutages = tool('ioda_summarize_outages', {
   description:
-    "Rank the entities of one entityType by IODA's outage summary score over an explicit Unix-second window of at most 31 days, such as the countries or a country's regions hit hardest this week. Rows keep IODA's order, descending scores.overall. IODA merges overlapping events from different sources, scores each merged event as the product of its sources' scores, and sums the merged events into overall; each <source>.<method> key sums that source's event scores. Scores are window totals for ranking the rows of one request, not current status, and are not comparable across requests with different windows. Add entityCode for one entity, or relatedToType and relatedToCode to rank entityType entities within one country, region, ASN, or geoasn; large type-only rankings can time out. An empty result is not an all-clear. Pages are zero-based; keep filters and limit fixed.",
+    "Rank the entities of one entityType by IODA's outage summary score over an explicit Unix-second window of at most 31 days, such as the countries or a country's regions hit hardest this week. Rows keep IODA's order, descending scores.overall. IODA merges overlapping events from different sources, scores each merged event as the product of its sources' scores, and sums the merged events into overall; each <source>.<method> key sums that source's event scores. Scores are window totals for ranking the rows of one request, not current status, and are not comparable across requests with different windows. Add entityCode for one entity, or relatedToType and relatedToCode to rank entityType entities within one country, region, ASN, or geoasn; large type-only rankings can time out. Event-start selection includes until, so adjacent windows can duplicate boundary detections. ignoreMethods excludes source.method, source.*, or *.method upstream before scoring; keep exclusions fixed when comparing rankings or drilling into events and alerts. An empty result is not an all-clear. Pages are zero-based; keep filters and limit fixed.",
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: true },
   input: z.object({
     entityType: entityInputs.entityType,
-    entityCode: entityInputs.entityCode.optional(),
+    entityCode: filterInputs.entityCode,
     ...scopeInputs,
     ...windowInputs,
     ...pageInputs,
+    ignoreMethods: ignoreMethodsInput,
     extendWindowSeconds: z
       .number()
       .int()
@@ -68,7 +73,7 @@ export const summarizeOutages = tool('ioda_summarize_outages', {
       reason: 'invalid_entity',
       code: JsonRpcErrorCode.ValidationError,
       thrownBy: 'service',
-      when: 'Blank or unsupported entityType, or an entityCode that does not fit it.',
+      when: 'entityCode is incompatible with entityType, zero or out of range.',
       recovery:
         'Call ioda_summarize_outages with entityType country, region, asn, or geoasn; to score one entity, resolve it with ioda_search_entities and pass a returned code as entityCode.',
     },
@@ -76,7 +81,7 @@ export const summarizeOutages = tool('ioda_summarize_outages', {
       reason: 'invalid_scope',
       code: JsonRpcErrorCode.ValidationError,
       thrownBy: 'service',
-      when: 'relatedToType and relatedToCode are incomplete, unsupported, or malformed, or a scope comes with entityCode.',
+      when: 'relatedToType and relatedToCode are incomplete or incompatible, the code is zero or out of range, or a scope comes with entityCode.',
       recovery:
         'Call ioda_summarize_outages with entityType, both relatedToType and relatedToCode (country, region, asn, or geoasn and its code), and no entityCode, or omit both scope fields; resolve the scope code with ioda_search_entities.',
     },
@@ -86,7 +91,7 @@ export const summarizeOutages = tool('ioda_summarize_outages', {
       thrownBy: 'service',
       when: 'Reversed, future, millisecond, or over-31-day window.',
       recovery:
-        'Call ioda_summarize_outages with integer Unix seconds from < until <= now and a window no longer than 31 days; split longer investigations into adjacent windows.',
+        'Call ioda_summarize_outages with integer Unix seconds from < until <= now and a window no longer than 31 days; split longer investigations into adjacent windows; shared boundaries can duplicate detections.',
     },
     {
       reason: 'upstream_bad_request',
@@ -158,6 +163,7 @@ export const summarizeOutages = tool('ioda_summarize_outages', {
   async handler(input, ctx) {
     const { now, deadline } = invocationClock();
     validateWindow(input, now);
+    const ignoreMethods = ignoredMethods(input.ignoreMethods);
     const filter = entityFilter(input);
     // entityType is required here, so a blank one is an invalid type before any scope check.
     const type = entityType(input.entityType);
@@ -175,6 +181,7 @@ export const summarizeOutages = tool('ioda_summarize_outages', {
       ...scope,
       from: input.from,
       until: input.until,
+      ...(ignoreMethods && { ignoreMethods }),
       extendWindowSeconds: extend.value,
       limit: limit.value,
       page: input.page,
@@ -192,6 +199,7 @@ export const summarizeOutages = tool('ioda_summarize_outages', {
         [
           limit.notice,
           extend.notice,
+          relatedMembershipNotice('ioda_summarize_outages', request),
           !result.summaries.length &&
             (input.page > 0
               ? emptyPageNotice('ioda_summarize_outages')

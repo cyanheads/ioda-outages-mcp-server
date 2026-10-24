@@ -170,6 +170,7 @@ export class IodaService {
         relatedTo: relatedTo(input),
         datasource: input.source,
         includeAlerts: input.includeAlerts,
+        ignoreMethods: input.ignoreMethods?.length ? input.ignoreMethods.join(',') : undefined,
         extendWindow: input.extendWindowSeconds,
         format: 'ioda',
         overall: false,
@@ -206,6 +207,7 @@ export class IodaService {
         entityType: input.entityType,
         entityCode: input.entityCode,
         relatedTo: relatedTo(input),
+        ignoreMethods: input.ignoreMethods?.length ? input.ignoreMethods.join(',') : undefined,
         extendWindow: input.extendWindowSeconds,
         limit: input.limit,
         page: input.page,
@@ -236,6 +238,7 @@ export class IodaService {
         entityType: input.entityType,
         entityCode: input.entityCode,
         relatedTo: scope,
+        ignoreMethods: input.ignoreMethods?.length ? input.ignoreMethods.join(',') : undefined,
         datasource: input.source,
         extendWindow: input.extendWindowSeconds,
         limit: input.limit,
@@ -386,7 +389,7 @@ export class IodaService {
       );
     if (signals.some((item) => item.series.some((series) => series.step !== series.nativeStep)))
       limitations.push(
-        'Coarser aggregate buckets cannot establish current coverage; inspect ioda_get_signals over a narrower window.',
+        'Coarser aggregate buckets cannot establish current coverage: upstream aggregates underlying samples, so values need not equal an unweighted mean of finer returned buckets and non-null aggregates cannot establish complete finer-resolution coverage. Inspect ioda_get_signals over a narrower window.',
       );
     if (
       signals.some((item) =>

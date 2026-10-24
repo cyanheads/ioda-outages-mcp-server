@@ -19,7 +19,7 @@ export const SOURCE_UNITS = {
 export const UnitSchema = z
   .enum(SOURCE_UNITS)
   .describe(
-    "IODA's published unit for this source's values; an aggregated bucket (step greater than nativeStep) is the mean of its native buckets, in the same unit.",
+    "IODA's published unit for this source's values. Coarse buckets aggregate underlying samples in the same unit; values need not equal an unweighted mean of finer returned buckets, and non-null aggregates do not prove complete finer-resolution coverage.",
   );
 /** Event and alert source filters. */
 export const SourceSchema = z.enum(['bgp', 'ping-slash24', 'merit-nt', 'gtr']);
@@ -72,8 +72,18 @@ export const AlertSchema = z
 export const EventSchema = z
   .object({
     entity: EntitySchema.describe('Entity measured'),
-    from: z.number().int().describe('Source start Unix seconds UTC'),
-    until: z.number().int().describe('Source end Unix seconds UTC'),
+    from: z
+      .number()
+      .int()
+      .describe(
+        'Source start Unix seconds UTC; starts at the inclusive requested until can be returned, and overlapping events may start before from',
+      ),
+    until: z
+      .number()
+      .int()
+      .describe(
+        'Source end Unix seconds UTC; may be clipped to the query boundary and does not establish recovery',
+      ),
     score: z.number().describe('Unmodified source score'),
     datasource: z.string().optional().describe('Measurement source'),
     method: z.string().optional().describe('Source detection method'),
@@ -113,11 +123,25 @@ export const NumericSeriesSchema = z
     entityName: z.string().optional().describe('Source entity name'),
     entityFqid: z.string().optional().describe('Source fully qualified entity identifier'),
     subtype: z.string().optional().describe('Source measurement subtype'),
-    from: z.number().int().describe('First aggregate bucket anchor, Unix seconds UTC'),
-    until: z.number().int().describe('Exclusive returned bucket bound, Unix seconds UTC'),
+    from: z
+      .number()
+      .int()
+      .describe(
+        'First aggregate bucket anchor, Unix seconds UTC; alignment can place it before the requested from',
+      ),
+    until: z
+      .number()
+      .int()
+      .describe(
+        'Exclusive returned bucket bound, Unix seconds UTC; alignment can place it after the requested until',
+      ),
     step: z.number().int().positive().describe('Returned bucket width in seconds'),
     nativeStep: z.number().int().positive().describe('Native measurement width in seconds'),
-    values: z.array(z.number().nullable()).describe('All numeric or missing aggregate values'),
+    values: z
+      .array(z.number().nullable())
+      .describe(
+        'All numeric or missing upstream aggregate values; a non-null coarse value can conceal missing finer observations',
+      ),
   })
   .catchall(extras)
   .describe('Numeric source buckets, including missing observations');
@@ -139,7 +163,11 @@ export const PaginationSchema = z.object({
   page: z.number().int().nonnegative().describe('Zero-based upstream page'),
   limit: z.number().int().positive().describe('Requested page size'),
   returned: z.number().int().nonnegative().describe('Returned record count'),
-  more: z.enum(['possible', 'no']).describe('Whether another page may exist'),
+  more: z
+    .enum(['possible', 'no'])
+    .describe(
+      'Whether another row page may exist; no does not verify related-scope membership coverage',
+    ),
   nextPage: z
     .number()
     .int()
@@ -156,8 +184,16 @@ export const EntityReferenceSchema = z.object({
 });
 /** Exact requested time window. */
 export const WindowSchema = z.object({
-  from: z.number().int().describe('Inclusive requested Unix seconds UTC'),
-  until: z.number().int().describe('Exclusive requested Unix seconds UTC'),
+  from: z
+    .number()
+    .int()
+    .describe('Requested start Unix seconds UTC; component selection and bucket alignment differ'),
+  until: z
+    .number()
+    .int()
+    .describe(
+      'Requested end Unix seconds UTC; detections include the boundary while returned signal bucket bounds are exclusive',
+    ),
 });
 /** Coverage labels describe observation availability, never health. */
 export const CoverageSchema = z.enum(['recent', 'stale', 'no_data', 'unknown']);
