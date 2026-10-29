@@ -1,6 +1,6 @@
 # ioda-outages-mcp-server - Directory Structure
 
-Generated on: 2026-10-24 21:06:21
+Generated on: 2026-10-29 02:12:17
 
 ```text
 ioda-outages-mcp-server/
@@ -26,6 +26,7 @@ ioda-outages-mcp-server/
 ├── changelog/
 │   ├── 0.1.x/
 │   ├── 0.2.x/
+│   ├── 0.3.x/
 │   └── template.md
 ├── docs/
 │   └── design.md
@@ -37,6 +38,8 @@ ioda-outages-mcp-server/
 │   ├── add-resource/
 │   │   └── SKILL.md
 │   ├── add-service/
+│   │   └── SKILL.md
+│   ├── add-skill/
 │   │   └── SKILL.md
 │   ├── add-test/
 │   │   └── SKILL.md
@@ -134,6 +137,9 @@ ioda-outages-mcp-server/
 │   ├── prune-musl-packages.ts
 │   ├── release-github.ts
 │   └── tree.ts
+├── skills/
+│   └── ioda-outages-guide/
+│       └── SKILL.md
 ├── src/
 │   ├── mcp-server/
 │   │   └── tools/
@@ -160,6 +166,8 @@ ioda-outages-mcp-server/
 │   │   └── outage-contracts.json
 │   ├── integration/
 │   │   └── investigation.test.ts
+│   ├── scripts/
+│   │   └── bundle-agent-docs.test.ts
 │   ├── services/
 │   │   ├── ioda-service.test.ts
 │   │   └── status.test.ts
@@ -183,7 +191,9 @@ ioda-outages-mcp-server/
 ├── Dockerfile
 ├── LICENSE
 ├── manifest.json
+├── mcp.json
 ├── package.json
+├── plugin.json
 ├── README.md
 ├── server.json
 ├── tsconfig.build.json
