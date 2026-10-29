@@ -1,13 +1,13 @@
 <div align="center">
   <h1>@cyanheads/ioda-outages-mcp-server</h1>
   <p><b>Investigate Internet outages with IODA events, alerts, and connectivity signals via MCP. STDIO or Streamable HTTP.</b>
-  <div>6 Tools</div>
+  <div>6 Tools • 1 Skill</div>
   </p>
 </div>
 
 <div align="center">
 
-[![Version](https://img.shields.io/badge/Version-0.2.1-blue.svg?style=flat-square)](./CHANGELOG.md) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Docker](https://img.shields.io/badge/Docker-ghcr.io-2496ED?style=flat-square&logo=docker&logoColor=white)](https://github.com/users/cyanheads/packages/container/package/ioda-outages-mcp-server) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^2.3.1-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![npm](https://img.shields.io/npm/v/@cyanheads/ioda-outages-mcp-server?style=flat-square&logo=npm&logoColor=white)](https://www.npmjs.com/package/@cyanheads/ioda-outages-mcp-server) [![TypeScript](https://img.shields.io/badge/TypeScript-^7.0.2-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.4.4-blueviolet.svg?style=flat-square)](https://bun.sh/)
+[![Version](https://img.shields.io/badge/Version-0.2.1-blue.svg?style=flat-square)](./CHANGELOG.md) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Docker](https://img.shields.io/badge/Docker-ghcr.io-2496ED?style=flat-square&logo=docker&logoColor=white)](https://github.com/users/cyanheads/packages/container/package/ioda-outages-mcp-server) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^2.4.0-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![npm](https://img.shields.io/npm/v/@cyanheads/ioda-outages-mcp-server?style=flat-square&logo=npm&logoColor=white)](https://www.npmjs.com/package/@cyanheads/ioda-outages-mcp-server) [![TypeScript](https://img.shields.io/badge/TypeScript-^7.0.2-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.4.4-blueviolet.svg?style=flat-square)](https://bun.sh/)
 
 </div>
 
@@ -41,6 +41,12 @@ Internet outage evidence from [IODA](https://ioda.inetintel.cc.gatech.edu/), usi
 | `ioda_summarize_outages` | Rank the entities of one type by IODA's per-window outage score |
 | `ioda_get_signals` | Fetch BGP, active IPv4 /24 probing, or Merit telescope numeric series |
 | `ioda_get_alerts` | Retrieve detection and recovery transitions with source baselines |
+
+### Skills
+
+| Skill | Description |
+|:---|:---|
+| `ioda-outages-guide` | Investigate Internet outages with the `ioda_*` tools — resolving places and networks to IODA codes, publication lag, signal resolution, and reading detections and rankings without over-claiming |
 
 ## Capability reference
 
@@ -89,6 +95,13 @@ Internet outage evidence from [IODA](https://ioda.inetintel.cc.gatech.edu/), usi
 - Required `from` and `until`; optional entity, source, and related-scope filters match `ioda_find_outages`; a related scope is served at page 0 only, because IODA cannot continue scoped alerts. `limit` is 1–1,000, default 20, served at most 100; `extendWindowSeconds` is 0–12,096,000, default 0, served at most 1,209,600.
 - Returns `alerts`, `pagination`, and `provenance`, retaining source `level`, `condition`, `value`, and `historyValue` when reported. `value` and `historyValue` are in the source unit for `bgp`, `ping-slash24`, and `merit-nt`; for `gtr` they are IODA Traffic divided by 1,000,000 and truncated. A missing transition does not establish health or rule out an event that began earlier.
 
+---
+
+### `ioda-outages-guide` <sub>skill</sub>
+
+- Helps an agent investigate a shutdown or outage, check whether a place or network is degraded now, rank the worst-hit entities, and chart connectivity: where each IODA code comes from, `asn` versus `geoasn`, getting the clock from the server, publication lag, native signal resolution, and which conclusions the evidence supports
+- Served over MCP as the resource `skill://ioda-outages-guide/SKILL.md` under the template `skill://{+path}`; also ships in `skills/` for plugin installs and the `.mcpb` bundle
+
 ## Features
 
 Built on [`@cyanheads/mcp-ts-core`](https://github.com/cyanheads/mcp-ts-core): stdio and Streamable HTTP transports, pluggable auth (`none` / `jwt` / `oauth`), swappable storage (`in-memory`, `filesystem`, `Supabase`, `Cloudflare KV/R2/D1`), structured logging with optional OpenTelemetry tracing.
@@ -112,125 +125,32 @@ Agent-friendly output:
 
 ## Getting started
 
-### Public Hosted Instance
-
-A public instance is available at `https://ioda-outages.caseyjhand.com/mcp` — no installation required. It serves Streamable HTTP; each client takes its own config shape.
-
-For Claude Code:
+Connect to the hosted instance, no install:
 
 ```sh
 claude mcp add --transport http ioda-outages-mcp-server https://ioda-outages.caseyjhand.com/mcp
 ```
 
-For Cline (`cline_mcp_settings.json`):
+Or run it locally:
 
-```json
-{
-  "mcpServers": {
-    "ioda-outages-mcp-server": {
-      "type": "streamableHttp",
-      "url": "https://ioda-outages.caseyjhand.com/mcp"
-    }
-  }
-}
+```sh
+claude mcp add ioda-outages-mcp-server -- npx -y @cyanheads/ioda-outages-mcp-server
 ```
 
-For Cursor (`mcp.json`):
+For other clients, add this to the MCP config file:
 
 ```json
 {
   "mcpServers": {
     "ioda-outages-mcp-server": {
-      "url": "https://ioda-outages.caseyjhand.com/mcp"
-    }
-  }
-}
-```
-
-Claude Desktop adds remote servers under Settings → Connectors.
-
-### Self-Hosted / Local
-
-Add the following to your MCP client configuration file. IODA requires no API key.
-
-```json
-{
-  "mcpServers": {
-    "ioda-outages-mcp-server": {
-      "type": "stdio",
-      "command": "bunx",
-      "args": ["@cyanheads/ioda-outages-mcp-server@latest"]
-    }
-  }
-}
-```
-
-Or with npx (no Bun required):
-
-```json
-{
-  "mcpServers": {
-    "ioda-outages-mcp-server": {
-      "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@cyanheads/ioda-outages-mcp-server@latest"]
+      "args": ["-y", "@cyanheads/ioda-outages-mcp-server"]
     }
   }
 }
 ```
 
-Or with Docker:
-
-```json
-{
-  "mcpServers": {
-    "ioda-outages-mcp-server": {
-      "type": "stdio",
-      "command": "docker",
-      "args": ["run", "-i", "--rm", "-e", "MCP_TRANSPORT_TYPE=stdio", "ghcr.io/cyanheads/ioda-outages-mcp-server:latest"]
-    }
-  }
-}
-```
-
-For Streamable HTTP, set the transport and start the server:
-
-```sh
-MCP_TRANSPORT_TYPE=http MCP_HTTP_PORT=3010 bun run start:http
-# Server listens at http://localhost:3010/mcp
-```
-
-### Prerequisites
-
-- [Bun v1.4.0](https://bun.sh/) or higher (or Node.js v24+).
-- Outbound HTTPS to `api.ioda.inetintel.cc.gatech.edu`. No API key or account.
-
-### Installation
-
-1. **Clone the repository:**
-
-```sh
-git clone https://github.com/cyanheads/ioda-outages-mcp-server.git
-```
-
-2. **Navigate into the directory:**
-
-```sh
-cd ioda-outages-mcp-server
-```
-
-3. **Install dependencies:**
-
-```sh
-bun install
-```
-
-4. **Configure environment (optional):**
-
-```sh
-cp .env.example .env
-# no server-specific variables; edit framework overrides as needed
-```
+IODA needs no API key or account, only outbound HTTPS to `api.ioda.inetintel.cc.gatech.edu`. For Docker or a source build, see [Running the server](#running-the-server).
 
 ## Configuration
 
@@ -254,29 +174,50 @@ See [`.env.example`](./.env.example) for the full list of framework overrides.
 
 ### Local development
 
-- **Build and run the production version**:
+Requires [Bun v1.4.0](https://bun.sh/) or higher (or Node.js v24+).
+
+- **Clone and install:**
+
+  ```sh
+  git clone https://github.com/cyanheads/ioda-outages-mcp-server.git
+  cd ioda-outages-mcp-server && bun install
+  cp .env.example .env   # optional: no server-specific variables, framework overrides only
+  ```
+
+- **Build and run:**
 
   ```sh
   # One-time build
   bun run rebuild
 
   # Run the built server
-  bun run start:http
-  # or
   bun run start:stdio
+  # or
+  bun run start:http
   ```
 
-- **Run checks and tests**:
+- **Run checks and tests:**
+
   ```sh
-  bun run devcheck  # Lints, formats, type-checks, and more
-  bun run test      # Runs the test suite
+  bun run devcheck   # Lint, format, typecheck, security
+  bun run test       # Vitest test suite
+  bun run lint:mcp   # Validate MCP definitions against spec
   ```
+
+### Docker
+
+```sh
+docker run --rm -p 3010:3010 ghcr.io/cyanheads/ioda-outages-mcp-server:latest
+```
+
+The image defaults to HTTP transport, stateless session mode, and logs to `/var/log/ioda-outages-mcp-server`. To run it over stdio from an MCP client, use `"command": "docker"` with `"args": ["run", "-i", "--rm", "-e", "MCP_TRANSPORT_TYPE=stdio", "ghcr.io/cyanheads/ioda-outages-mcp-server:latest"]`. To build locally, `docker build -t ioda-outages-mcp-server .`; OpenTelemetry peer dependencies are installed by default — build with `--build-arg OTEL_ENABLED=false` to omit them.
 
 ## Project structure
 
 | Directory | Purpose |
 |:---|:---|
-| `src/index.ts` | Server identity, tool registration, service lifecycle |
+| `src/index.ts` | Server identity, tool registration, published skill, service lifecycle |
+| `skills/` | `ioda-outages-guide/SKILL.md`, the published agent skill |
 | `src/mcp-server/tools/definitions/` | Six read-only tools |
 | `src/mcp-server/tools/ioda-common.ts` | Shared input normalization, rendering, response budgeting |
 | `src/services/ioda/` | Fixed-origin API client, schemas, pacing, status assessment |

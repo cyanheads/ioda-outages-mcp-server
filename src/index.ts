@@ -19,6 +19,7 @@ await createApp({
   tools: [searchEntities, getStatus, findOutages, summarizeOutages, getSignals, getAlerts],
   resources: [],
   prompts: [],
+  skills: 'skills',
   sessionMode: 'stateless',
   setup: () => initIodaService(),
   teardown: () => disposeIodaService(),
