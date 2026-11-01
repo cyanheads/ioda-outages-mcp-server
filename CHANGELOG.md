@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.3.1](changelog/0.3.x/0.3.1.md) — 2026-11-01
+
+Count inputs take one served cap each (limit 1000, maxPoints 10000) with no response byte budget, and IODA_CLAMP_LIMITS=false enforces the caps; ioda_get_signals serves gtr for countries; notices name IODA placeholder regions and ASNs, pre-2022 archive gaps, and trailing buckets not yet published; entity queries match literally.
+
 ## [0.3.0](changelog/0.3.x/0.3.0.md) — 2026-10-28
 
 Publishes the ioda-outages-guide agent skill over MCP (skill://ioda-outages-guide/SKILL.md) and in the npm package, Docker image, and .mcpb bundle, and moves to mcp-ts-core 0.13.18, which stops the HTTP transport retaining memory per request under Bun and drops repo-local and framework build-only files from the bundle.
