@@ -3578,7 +3578,7 @@ describe('empty windows against the detection archive start', () => {
       network(() => envelope([]));
       const data = parity(await run());
       expect(data.applied).toMatchObject({ extendWindowSeconds: 1209600 });
-      expect(data.notice).toMatch(new RegExp(`^${before.replace(/[.()]/g, '\\$&')}`));
+      expect(String(data.notice).startsWith(before)).toBe(true);
     }
   });
   it('leaves later pages, non-empty pages, and windows from the start on unchanged', async () => {
