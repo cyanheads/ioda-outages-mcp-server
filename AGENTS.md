@@ -28,13 +28,13 @@
 The six tool definitions in `src/mcp-server/tools/definitions/` are the source for real examples. `search-entities.tool.ts` demonstrates normalized identifier inputs and paged enrichment; `get-status.tool.ts` demonstrates bounded multi-component evidence.
 
 - Use `getIodaService()` from `@/services/ioda/index.js`. The service is initialized by `setup` and disposed by `teardown` in `src/index.ts`.
-- Capture one invocation clock and deadline. Use the shared `finish()` path in `ioda-common.ts` for schema validation, exact dual-surface budgeting, enrichment, and cancellation.
+- Capture one invocation clock and deadline. Use the shared `finish()` path in `ioda-common.ts` for schema validation, enrichment, and cancellation. It never shortens or rejects a page for size.
 - Keep `renderOutput` and `enrichmentTrailer` lossless. Both `content[]` and `structuredContent` must preserve every field, value, link, and line break.
 - Historical windows use Unix seconds UTC, at most 31 days. Pages start at 0; continue with unchanged filters and limit.
 - Entity types are `country`, `region`, `asn`, and `geoasn`. An optional `relatedToType` and `relatedToCode` scope lists `entityType` entities within one entity (`relatedScope()` in `ioda-common.ts`): both or neither, `entityType` required, no `entityCode`.
-- Numeric sources are `bgp`, `ping-slash24`, and `merit-nt`; event/alert filters also accept `gtr`. Do not substitute `ucsd-nt`.
+- Numeric sources are `bgp`, `ping-slash24`, and `merit-nt`; `ioda_get_signals` also accepts `gtr` (countries only) and event/alert filters accept it too, while `ioda_get_status` keeps the three core sources. Do not substitute `ucsd-nt`.
 - Detections and measurement coverage are independent. Preserve nulls, stale/coarse observations, clipped boundaries, partial failures, original source scores, and attribution. Never infer healthy connectivity or a shutdown cause.
-- IODA is keyless with a fixed origin and no custom configuration schema. Framework environment settings remain available.
+- IODA is keyless with a fixed origin. The server's one setting, `IODA_CLAMP_LIMITS`, is parsed by `src/config/server-config.ts` in `setup()`; input schemas read it at parse and emit time through `activeServerConfig()`. Framework environment settings remain available.
 - Context usage: `ctx.log` for request logging, `ctx.signal` for cancellation, `ctx.enrich` for applied inputs and recovery notices, and `ctx.fail` for declared handler failures. No storage or interactive input is used.
 
 ---
@@ -56,6 +56,8 @@ See framework CLAUDE.md and the `api-errors` skill for the full auto-classificat
 ```text
 src/
   index.ts
+  config/
+    server-config.ts
   mcp-server/tools/
     ioda-common.ts
     definitions/

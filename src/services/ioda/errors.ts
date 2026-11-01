@@ -20,7 +20,6 @@ export type IodaReason =
   | 'upstream_rate_limited'
   | 'upstream_queue_full'
   | 'upstream_schema'
-  | 'response_too_large'
   | 'upstream_unavailable'
   | 'upstream_timeout'
   | 'upstream_unauthorized'
@@ -44,22 +43,6 @@ export function recoveryFor(reason: IodaReason, tool: IodaTool): string {
       if (tool === 'ioda_search_entities')
         return 'Retry ioda_search_entities once with a smaller limit and page 0; if the response still cannot be parsed, stop this search and report the response schema failure.';
       return `Retry ${tool} once with a narrower window; if the response still cannot be parsed, stop this investigation and report the response schema failure.`;
-    case 'response_too_large': {
-      switch (tool) {
-        case 'ioda_search_entities':
-          return 'Call ioda_search_entities with a smaller limit and page 0, then continue with that fixed limit.';
-        case 'ioda_find_outages':
-          return 'Call ioda_find_outages with includeAlerts false, a smaller limit and page 0; retrieve transitions with ioda_get_alerts over narrower windows.';
-        case 'ioda_summarize_outages':
-          return 'Call ioda_summarize_outages with a smaller limit and page 0, then continue with that fixed limit.';
-        case 'ioda_get_alerts':
-          return 'Call ioda_get_alerts with a narrower window or smaller limit and page 0, then continue with that fixed limit.';
-        case 'ioda_get_signals':
-          return 'Call ioda_get_signals with fewer maxPoints or split the time window into adjacent requests.';
-        default:
-          return 'Call ioda_get_status with a shorter lookbackHours, or call ioda_find_outages, ioda_get_alerts, and ioda_get_signals separately with narrower windows.';
-      }
-    }
     case 'upstream_unauthorized':
     case 'upstream_forbidden':
       return `The keyless public endpoint refused access. Retry ${tool} later; no API key is required.`;

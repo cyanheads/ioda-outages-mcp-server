@@ -39,7 +39,7 @@ Internet outage evidence from [IODA](https://ioda.inetintel.cc.gatech.edu/), usi
 | `ioda_get_status` | Inspect recent detection evidence and coverage across three numeric sources |
 | `ioda_find_outages` | Retrieve overlapping outage events for an entity or globally |
 | `ioda_summarize_outages` | Rank the entities of one type by IODA's per-window outage score |
-| `ioda_get_signals` | Fetch BGP, active IPv4 /24 probing, or Merit telescope numeric series |
+| `ioda_get_signals` | Fetch BGP, active IPv4 /24 probing, Merit telescope, or country-level Google Transparency Report traffic numeric series |
 | `ioda_get_alerts` | Retrieve detection and recovery transitions with source baselines |
 
 ### Skills
@@ -52,48 +52,50 @@ Internet outage evidence from [IODA](https://ioda.inetintel.cc.gatech.edu/), usi
 
 ### `ioda_search_entities` <sub>tool</sub>
 
-- Required `entityType: country | region | asn | geoasn` (a geoasn is one ASN within a region or country); choose `query` (up to 200 UTF-16 code units after trimming) or `entityCode`, or omit both to list the type. Country codes use two letters, regions use IODA numeric codes, ASNs use decimal digits, and geoasns join an ASN and a region or country code (`40934-576`, `59962-IR`).
+- Required `entityType: country | region | asn | geoasn` (a geoasn is one ASN within a region or country); choose `query` (up to 200 UTF-16 code units after trimming, matched literally as a case-insensitive name substring) or `entityCode`, or omit both to list the type. Country codes use two letters, regions use IODA numeric codes, ASNs use decimal digits, and geoasns join an ASN and a region or country code (`40934-576`, `59962-IR`).
 - Optional `relatedToType` and `relatedToCode` list `entityType` entities within one country, region, ASN, or geoasn; both or neither, `entityType` required, no `entityCode`, and a scope combines with `query`. Page this resolver to select codes for individual outage investigations.
-- `limit` is 1–1,000, default 20, served at most 100; `page` starts at 0. Returns original `entities`, `pagination`, and `provenance`; a metadata match does not establish measurement coverage.
+- `limit` is at least 1, default 20, served at most 1,000; `page` starts at 0. Returns original `entities`, `pagination`, and `provenance`; a metadata match does not establish measurement coverage. Region pages can include IODA geolocation catch-alls named `[Invalid Region (N)]` or `Unknown Region in <country>`; a notice names their codes, and the rows stay as IODA returns them. An `asn` `entityCode` IODA holds no record of returns a placeholder row with `attrs.ip_count` "0"; a notice names it.
 
 ---
 
 ### `ioda_get_status` <sub>tool</sub>
 
-- Required `entityType` (`country`, `region`, `asn`, or `geoasn`) and `entityCode`; `lookbackHours` is 1–240, default 6, served at most 24 with a notice naming the uncovered earlier window. Collects events, alerts, and `bgp`, `ping-slash24`, and `merit-nt` summaries within the returned `window`.
+- Required `entityType` (`country`, `region`, `asn`, or `geoasn`) and `entityCode`; `lookbackHours` is at least 1, default 6, served at most 24 with a notice naming the uncovered earlier window. Collects events, alerts, and `bgp`, `ping-slash24`, and `merit-nt` summaries within the returned `window`.
 - `detection` is `observed`, `none_returned`, or `unknown`; source `coverage` is independently `recent`, `stale`, `no_data`, or `unknown`. `recent` means the latest completed observation ended within a 1,800-second publication allowance of the call, the same for all three sources, a server policy rather than an upstream SLA. Trailing nulls inside the allowance count as `pendingCount`, not `nullCount`.
 - Each `signals` entry carries IODA's `unit` for its source (`Visible /24s`, `Up /24s`, `Unique Source IPs`); `latest`, `minimum`, and `maximum` are in that unit.
-- `components` disclose partial failures and standalone-tool recovery. Event/alert pages carry continuation metadata; raw samples come from `ioda_get_signals`. All-component failure fails the call; an unknown country, region, or geoasn code fails with `entity_not_found`.
+- `components` disclose partial failures and standalone-tool recovery. Event/alert pages carry continuation metadata; raw samples come from `ioda_get_signals`. All-component failure fails the call; an unknown country, region, or geoasn code fails with `entity_not_found`. IODA answers an unknown `asn` code with a placeholder instead; when no event, alert, or series came back for an `asn`, a notice says a returned `ioda_search_entities` row does not confirm IODA holds data for it.
 
 ---
 
 ### `ioda_find_outages` <sub>tool</sub>
 
-- Required `from` and `until`; optional `entityType` (`country`, `region`, `asn`, or `geoasn`), `entityCode`, and `source: bgp | ping-slash24 | merit-nt | gtr`. Omit entity filters for global scope; a code requires its type. Optional `relatedToType` and `relatedToCode` limit results to `entityType` entities within one country, region, ASN, or geoasn (both or neither, `entityType` required, no `entityCode`). `limit` is 1–1,000, default 20, served at most 100.
+- Required `from` and `until`; optional `entityType` (`country`, `region`, `asn`, or `geoasn`), `entityCode`, and `source: bgp | ping-slash24 | merit-nt | gtr`. Omit entity filters for global scope; a code requires its type. Optional `relatedToType` and `relatedToCode` limit results to `entityType` entities within one country, region, ASN, or geoasn (both or neither, `entityType` required, no `entityCode`). `limit` is at least 1, default 20, served at most 1,000.
 - Returns source `events`, `pagination`, and `provenance`. Scores retain their source meaning; starts may precede the window and an end clipped at `until` does not establish recovery.
-- `includeAlerts` defaults to false; `extendWindowSeconds` is 0–12,096,000, served at most 1,209,600. Omitted, it is 1,209,600 with `entityType` and 86,400 without it, because large global extensions can time out; the applied value is echoed, and a notice discloses the global default. Global searches over multi-day windows can still time out: narrow the window or add `entityType`. Zero extension can miss long-running detections.
+- `includeAlerts` defaults to false; `extendWindowSeconds` is at least 0, served at most 1,209,600. Omitted, it is 1,209,600 with `entityType` and 86,400 without it, because large global extensions can time out; the applied value is echoed, and a notice discloses the global default. Global searches over multi-day windows can still time out: narrow the window or add `entityType`. Zero extension can miss long-running detections.
 
 ---
 
 ### `ioda_summarize_outages` <sub>tool</sub>
 
-- Required `entityType`, `from`, and `until`; optional `entityCode` for one entity, or `relatedToType` and `relatedToCode` to rank `entityType` entities within one country, region, ASN, or geoasn (both or neither, no `entityCode`). `limit` is 1–1,000, default 20, served at most 100; `extendWindowSeconds` is 0–12,096,000, default 1,209,600, served at most 1,209,600. There is no `source` input.
+- Required `entityType`, `from`, and `until`; optional `entityCode` for one entity, or `relatedToType` and `relatedToCode` to rank `entityType` entities within one country, region, ASN, or geoasn (both or neither, no `entityCode`). `limit` is at least 1, default 20, served at most 1,000; `extendWindowSeconds` is at least 0, default 1,209,600, served at most 1,209,600. There is no `source` input.
 - Returns `summaries` in IODA's order, descending `scores.overall`, with `pagination` and `provenance`. Each row carries the `entity`, `event_cnt` (IODA's count of source events before merging), and unmodified `scores`: `overall` plus one sum of event scores per `<source>.<method>` key. IODA merges overlapping events from different sources, scores each merged event as the product of its sources' scores, and sums the merged events into `overall`.
-- Scores are window totals for ranking the rows of one request, not current status, and are not comparable across requests with different windows. Large type-only rankings (every region, for example) can time out; add `entityCode` or a related scope. An empty result is not an all-clear.
+- Scores are window totals for ranking the rows of one request, not current status, and are not comparable across requests with different windows. Large type-only rankings (every region, for example) can time out; add `entityCode` or a related scope. Region rankings, like region events and alerts, can include the catch-all rows described above; a notice names their codes. An empty result is not an all-clear.
 
 ---
 
 ### `ioda_get_signals` <sub>tool</sub>
 
-- Required entity pair (`entityType` may be `geoasn`), `from`, `until`, and `source: bgp | ping-slash24 | merit-nt` (`gtr` and `ucsd-nt` are not numeric sources here). `maxPoints` is 1–20,000, default 200, served at most 2,000: an upstream aggregation target, not a hard returned-sample cap.
-- Returns every numeric subtype in `series`, source-specific `semantics` (measurement, IODA's `unit`, caveat), and `provenance`. An unknown country, region, or geoasn code fails with `entity_not_found`. Returned `until` is an exclusive bucket bound; alignment can extend beyond requested bounds. Coarse series carry a notice: values need not equal an unweighted mean of finer returned buckets, and non-null aggregates cannot establish complete finer-resolution coverage. Values, nulls, and units remain unchanged; status coverage stays `unknown` for coarse series.
+- Required entity pair (`entityType` may be `geoasn`), `from`, `until`, and `source: bgp | ping-slash24 | merit-nt | gtr` (`gtr` covers countries only; `ucsd-nt` is not supported). `maxPoints` is at least 1, default 200, served at most 10,000: an upstream aggregation target, not a hard returned-sample cap.
+- Returns every numeric subtype in `series`, source-specific `semantics` (measurement, IODA's `unit`, caveat; `gtr` reads `Traffic`, to compare a country with its own history), and `provenance`. An unknown country, region, or geoasn code fails with `entity_not_found`. Returned `until` is an exclusive bucket bound; alignment can extend beyond requested bounds. Coarse series carry a notice: values need not equal an unweighted mean of finer returned buckets, and non-null aggregates cannot establish complete finer-resolution coverage. Values, nulls, and units remain unchanged; status coverage stays `unknown` for coarse series.
+- Trailing nulls are not zero connectivity. A notice counts each series' trailing nulls as not yet ended, pending (ended within the publication allowance before the call: 1,800 seconds for `bgp` and `ping-slash24`, 10,800 for `merit-nt` and `gtr`), or missing; the first two are usually unpublished, so end the window at least the allowance plus one bucket step before the call, since the last returned bucket can end after `until`. A coarse last non-null bucket inside the allowance can aggregate only the samples published so far. Interior nulls stay missing observations.
+- An empty `series` gets a notice by case: `gtr` for a region, ASN, or geoasn (it covers countries only); a window ending by the source's archive start, which says IODA holds nothing earlier instead of suggesting another code or window; a window starting inside the publication allowance, which IODA may not have published yet; an `asn`, where a returned search row does not confirm data and `attrs.ip_count` "0" marks IODA's placeholder.
 
 ---
 
 ### `ioda_get_alerts` <sub>tool</sub>
 
-- Required `from` and `until`; optional entity, source, and related-scope filters match `ioda_find_outages`; a related scope is served at page 0 only, because IODA cannot continue scoped alerts. `limit` is 1–1,000, default 20, served at most 100; `extendWindowSeconds` is 0–12,096,000, default 0, served at most 1,209,600.
-- Returns `alerts`, `pagination`, and `provenance`, retaining source `level`, `condition`, `value`, and `historyValue` when reported. `value` and `historyValue` are in the source unit for `bgp`, `ping-slash24`, and `merit-nt`; for `gtr` they are IODA Traffic divided by 1,000,000 and truncated. A missing transition does not establish health or rule out an event that began earlier.
+- Required `from` and `until`; optional entity, source, and related-scope filters match `ioda_find_outages`; a related scope is served at page 0 only, because IODA cannot continue scoped alerts. `limit` is at least 1, default 20, served at most 1,000; `extendWindowSeconds` is at least 0, default 0, served at most 1,209,600.
+- Returns `alerts`, `pagination`, and `provenance`, retaining source `level`, `condition`, `value`, and `historyValue` when reported. `value` and `historyValue` are in the source unit for `bgp`, `ping-slash24`, and `merit-nt`; for `gtr` they are IODA Traffic divided by 1,000,000 and truncated. A recovery's `historyValue` can be a baseline IODA re-based during a long event; compare its `value` with the detection's `historyValue` and `condition`. A missing transition does not establish health or rule out an event that began earlier.
 
 ---
 
@@ -109,11 +111,11 @@ Built on [`@cyanheads/mcp-ts-core`](https://github.com/cyanheads/mcp-ts-core): s
 IODA-specific:
 
 - Keyless reads from a fixed HTTPS API origin; no local database or native helper.
-- Historical windows use integer Unix seconds UTC: `from < until <= now`, at most 31 days. Alerts include transitions at both bounds (widened by extension); events and summaries include starts at `until`. Adjacent windows can duplicate boundary detections. Signal bounds describe aligned buckets; status echoes the requested window across components with different selection rules.
+- Historical windows use integer Unix seconds UTC: `from < until <= now`, at most 31 days. Alerts include transitions at both bounds (widened by extension); events and summaries include starts at `until`. Adjacent windows can duplicate boundary detections. Signal bounds describe aligned buckets; status echoes the requested window across components with different selection rules. IODA's API holds no outage detections before 2022-01-26 UTC and no `merit-nt`, `bgp`, or `ping-slash24` observations before 2022-01-09, 2022-01-18, and 2022-02-02 (`gtr` has no start); an empty result for a window ending by then says so instead of suggesting another code or a wider window.
 - `ignoreMethods: string[]` on events, alerts, and rankings excludes detections upstream before event construction and scoring: `source.method`, `source.*`, or `*.method`, with sources `bgp`, `ping-slash24`, `merit-nt`, and `gtr`. Case/whitespace normalize and duplicates collapse; an empty array excludes nothing. Malformed terms and `*.*` fail `invalid_arguments`; an explicit `source` plus its own `source.*` fails `invalid_ignore_methods`. Keep exclusions fixed across pages and ranking drill-downs; provider scores and order are preserved.
 - Every related-scope outage response warns that membership coverage is unverified, even on short or empty pages. Page `ioda_search_entities` with the same entity type, scope, and limit, then query selected codes individually with the original window, source/exclusions, extension, and paging limit; each response supplies the concrete calls. `pagination.more` describes row pages, not scope completeness.
 - Pagination is zero-based; follow `nextPage` with filters and `limit` unchanged. `more: "possible"` signals possible continuation, not a known total; restart at page 0 after changing the limit.
-- Numeric inputs accept up to ten times their served cap (`limit` 100, `maxPoints` 2,000, `lookbackHours` 24, `extendWindowSeconds` 1,209,600); a larger value is served at the cap and a notice names the requested value, the served value, and the route to the rest. Minimums and values above the accepted maximum fail argument validation.
+- Numeric inputs have no advertised maximum: a larger `limit` (cap 1,000), `maxPoints` (10,000), `lookbackHours` (24), or `extendWindowSeconds` (1,209,600) is served at the cap, and a notice names the requested value, the served value, and the route to the rest. Minimums and non-integers fail argument validation. With `IODA_CLAMP_LIMITS=false`, each cap is the schema maximum and a larger value fails `invalid_arguments`.
 - Shared request pacing allows one in-flight request and at least two seconds between starts, with a 45-second invocation deadline. Avoid concurrent investigations.
 - IODA describes macroscopic connectivity. Missing detections are not an all-clear; source scores are not universal severity, and observations cannot establish a shutdown cause or one office's connectivity.
 
@@ -121,7 +123,7 @@ Agent-friendly output:
 
 - Provenance — endpoint links, fetch times, and the original Georgia Tech Research Corporation attribution accompany returned evidence; `applied` echoes effective inputs.
 - Explicit uncertainty — null samples, missing fields, source coverage, and partial component failures stay distinct.
-- Complete, bounded responses — `content[]` and `structuredContent` carry the same data, enrichment included. Upstream bodies cap at 2 MiB and the combined response at 96 KiB; past that, `response_too_large` names a smaller call instead of dropping records.
+- Complete responses — `content[]` and `structuredContent` carry the same data, enrichment included, and a page is never shortened to fit a size budget. An upstream body over 4 MiB fails `upstream_schema`.
 
 ## Getting started
 
@@ -154,10 +156,11 @@ IODA needs no API key or account, only outbound HTTPS to `api.ioda.inetintel.cc.
 
 ## Configuration
 
-The server has no settings of its own. The common framework variables:
+One server-specific variable, then the common framework variables:
 
 | Variable | Description | Default |
 |:---|:---|:---|
+| `IODA_CLAMP_LIMITS` | Serve an over-cap `limit`, `maxPoints`, `lookbackHours`, or `extendWindowSeconds` at its cap with a notice. `false` rejects it with `invalid_arguments` and advertises each cap as the schema maximum. | `true` |
 | `MCP_TRANSPORT_TYPE` | Transport: `stdio` or `http`. | `stdio` |
 | `MCP_HTTP_HOST` | HTTP bind address. | `127.0.0.1` |
 | `MCP_HTTP_PORT` | HTTP server port. | `3010` |
@@ -181,7 +184,7 @@ Requires [Bun v1.4.0](https://bun.sh/) or higher (or Node.js v24+).
   ```sh
   git clone https://github.com/cyanheads/ioda-outages-mcp-server.git
   cd ioda-outages-mcp-server && bun install
-  cp .env.example .env   # optional: no server-specific variables, framework overrides only
+  cp .env.example .env   # optional: `IODA_CLAMP_LIMITS` and framework overrides
   ```
 
 - **Build and run:**
@@ -219,7 +222,8 @@ The image defaults to HTTP transport, stateless session mode, and logs to `/var/
 | `src/index.ts` | Server identity, tool registration, published skill, service lifecycle |
 | `skills/` | `ioda-outages-guide/SKILL.md`, the published agent skill |
 | `src/mcp-server/tools/definitions/` | Six read-only tools |
-| `src/mcp-server/tools/ioda-common.ts` | Shared input normalization, rendering, response budgeting |
+| `src/config/server-config.ts` | Server-specific environment configuration (`IODA_CLAMP_LIMITS`) |
+| `src/mcp-server/tools/ioda-common.ts` | Shared input normalization, served caps and notices, rendering |
 | `src/services/ioda/` | Fixed-origin API client, schemas, pacing, status assessment |
 | `tests/` | Contract, service, and formatting tests |
 | `docs/design.md` | Domain contracts, design decisions, API evidence |

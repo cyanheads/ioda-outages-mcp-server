@@ -4,6 +4,7 @@
     "args": ["-y", "@cyanheads/ioda-outages-mcp-server"],
     "env": {
       "MCP_TRANSPORT_TYPE": "stdio"
-    }
+    },
+    "env_vars": ["IODA_CLAMP_LIMITS"]
   }
 }

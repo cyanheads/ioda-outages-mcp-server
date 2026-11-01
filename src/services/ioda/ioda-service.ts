@@ -41,13 +41,20 @@ import type {
   SummaryResult,
 } from './types.js';
 
-/** The largest maxPoints one signal request serves; status requests it. */
-export const MAX_POINTS = 2000;
-/** Fixed component requests behind ioda_get_status, echoed by the tool as applied inputs. */
+/**
+ * The largest maxPoints one signal request serves. A 31-day window is 8,928 buckets at the
+ * 300-second native step of bgp and merit-nt (4,464 at ping-slash24's 600), so the cap keeps
+ * every allowed window native.
+ */
+export const MAX_POINTS = 10000;
+/**
+ * Fixed component requests behind ioda_get_status, echoed by the tool as applied inputs. A
+ * 24-hour lookback is at most 288 native buckets, so 2000 points always returns native buckets.
+ */
 export const STATUS_REQUESTS = {
   events: { limit: 20, page: 0, includeAlerts: false, extendWindowSeconds: 1209600 },
   alerts: { limit: 100, page: 0, extendWindowSeconds: 0 },
-  signals: { maxPoints: MAX_POINTS },
+  signals: { maxPoints: 2000 },
 } as const;
 
 type StatusComponent = StatusEvidence['components'][number];
@@ -130,7 +137,10 @@ export class IodaService {
     this.client.dispose();
   }
 
-  /** Fetch one entity page; names are not coverage claims. */
+  /**
+   * Fetch one entity page; names are not coverage claims. IODA matches `search` as
+   * `name ILIKE '%<search>%'`, so each `\`, `%`, and `_` is backslash-escaped to match literally.
+   */
   async searchEntities(
     input: EntitySearch,
     ctx: Context,
@@ -141,7 +151,7 @@ export class IodaService {
       {
         entityType: input.entityType,
         entityCode: input.entityCode,
-        search: input.query,
+        search: input.query?.replace(/[\\%_]/g, '\\$&'),
         relatedTo: relatedTo(input),
         limit: input.limit,
         page: input.page,
@@ -295,14 +305,17 @@ export class IodaService {
           item.until <= item.from ||
           item.until - item.from !== item.values.length * item.step)
       ) {
+        // A larger maxPoints changes the request only while it aggregates the window below the cap.
+        const aggregated =
+          input.maxPoints < MAX_POINTS &&
+          input.maxPoints * item.nativeStep < input.until - input.from;
         throw iodaError(
           JsonRpcErrorCode.SerializationError,
           'upstream_schema',
           'IODA returned inconsistent signal bucket bounds and step.',
           'ioda_get_signals',
           {
-            // A larger maxPoints is a lever only below the served cap; status already requests it.
-            recovery: `Call ioda_get_signals with ${input.maxPoints < MAX_POINTS ? `a larger maxPoints (up to ${MAX_POINTS}) or ` : ''}a narrower window; the source bucket intervals were inconsistent.`,
+            recovery: `Call ioda_get_signals with ${aggregated ? `a larger maxPoints (up to ${MAX_POINTS}) or ` : ''}a narrower window; the source bucket intervals were inconsistent.`,
           },
         );
       }

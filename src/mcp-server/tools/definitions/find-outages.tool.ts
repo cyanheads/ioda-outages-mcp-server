@@ -11,6 +11,10 @@ import {
   ProvenanceSchema,
 } from '@/services/ioda/index.js';
 import {
+  archiveNotice,
+  archivePosition,
+  cappedInput,
+  cappedMeta,
   clampExtendWindow,
   clampLimit,
   composeEnrichment,
@@ -24,6 +28,7 @@ import {
   ignoreMethodsInput,
   invocationClock,
   pageInputs,
+  placeholderRegionNotice,
   relatedMembershipNotice,
   relatedScope,
   renderOutput,
@@ -67,14 +72,14 @@ export const findOutages = tool('ioda_find_outages', {
       .describe(
         'Include original nested alert transitions and baselines; may substantially increase response size.',
       ),
-    extendWindowSeconds: z
-      .number()
-      .int()
-      .min(0)
-      .max(SERVED_CAPS.extendWindowSeconds * 10)
+    extendWindowSeconds: cappedInput('extendWindowSeconds', 0)
       .optional()
-      .describe(
-        'Seconds before from to search for the start of an event overlapping the window, and after until for its recovery; only overlapping events are returned. Defaults to 1209600 (14 days) with entityType and 86400 (one day) without it, because large global extensions can time out; the applied value is echoed. Values above 1209600 are served as 1209600 with a notice. Zero may miss long-running detections.',
+      .meta(
+        cappedMeta(
+          'extendWindowSeconds',
+          (clamped, cap) =>
+            `Seconds before from to search for the start of an event overlapping the window, and after until for its recovery; only overlapping events are returned. Defaults to 1209600 (14 days) with entityType and 86400 (one day) without it, because large global extensions can time out; the applied value is echoed. ${clamped ? `Values above ${cap} are served as ${cap} with a notice.` : `At most ${cap}.`} Zero may miss long-running detections.`,
+        ),
       ),
   }),
   output: Output,
@@ -167,17 +172,9 @@ export const findOutages = tool('ioda_find_outages', {
       reason: 'upstream_schema',
       code: JsonRpcErrorCode.SerializationError,
       thrownBy: 'service',
-      when: 'IODA data or bucket metadata does not validate.',
+      when: 'IODA data or bucket metadata does not validate, or the response body is over 4 MiB.',
       recovery:
         'Retry ioda_find_outages once with a narrower window; if the response still cannot be parsed, stop this investigation and report the response schema failure.',
-    },
-    {
-      reason: 'response_too_large',
-      code: JsonRpcErrorCode.ValidationError,
-      thrownBy: 'service',
-      when: 'The upstream body or combined response exceeds its byte budget.',
-      recovery:
-        'Call ioda_find_outages with includeAlerts false, a smaller limit and page 0; retrieve transitions with ioda_get_alerts over narrower windows.',
     },
   ],
   async handler(input, ctx) {
@@ -185,7 +182,7 @@ export const findOutages = tool('ioda_find_outages', {
     validateWindow(input, now);
     const source = sourceFilter(input.source);
     const ignoreMethods = ignoredMethods(input.ignoreMethods, source);
-    const limit = clampLimit(input.limit, input.page);
+    const limit = clampLimit(input.limit, input.page, ctx, 'ioda_find_outages');
     const filter = entityFilter(input);
     const scope = relatedScope(input);
     const globalDefault = input.extendWindowSeconds === undefined && !filter.entityType;
@@ -195,6 +192,7 @@ export const findOutages = tool('ioda_find_outages', {
       'ioda_find_outages',
       input,
       now,
+      ctx,
     );
     const request = {
       ...filter,
@@ -209,6 +207,10 @@ export const findOutages = tool('ioda_find_outages', {
       page: input.page,
     };
     const result = await getIodaService().getEvents(request, ctx, { deadline });
+    const empty = !result.events.length;
+    // Events start at or before until, so the window alone places an empty first page against the start.
+    const archive = empty && !input.page ? archivePosition(input, 'detections') : undefined;
+    const ordinary = archive === 'straddles' || archive === 'after';
     return finish(
       Output,
       result,
@@ -225,12 +227,15 @@ export const findOutages = tool('ioda_find_outages', {
           extend.notice,
           relatedMembershipNotice('ioda_find_outages', request),
           globalDefault && globalDefaultNotice,
-          !result.events.length &&
-            (input.page > 0
-              ? emptyPageNotice('ioda_find_outages')
-              : 'No detected events were returned for this scope and window. Call ioda_get_signals for measurement coverage, or ioda_find_outages with a wider window or fewer filters. This is not an all-clear.'),
-          !result.events.length && !input.page && request.entityCode && unknownCodeNotice,
-          !result.events.length && !input.page && scope && unknownScopeNotice,
+          placeholderRegionNotice(result.events.map((event) => event.entity)),
+          empty && input.page > 0 && emptyPageNotice('ioda_find_outages'),
+          archive === 'before' &&
+            `${archiveNotice('detections', 'before')} This is not an all-clear.`,
+          ordinary &&
+            'No detected events were returned for this scope and window. Call ioda_get_signals for measurement coverage, or ioda_find_outages with a wider window or fewer filters. This is not an all-clear.',
+          ordinary && request.entityCode && unknownCodeNotice,
+          ordinary && scope && unknownScopeNotice,
+          archive === 'straddles' && archiveNotice('detections', 'straddles'),
         ],
         result.pagination,
       ),

@@ -11,6 +11,10 @@ import {
   ProvenanceSchema,
 } from '@/services/ioda/index.js';
 import {
+  archiveNotice,
+  archivePosition,
+  cappedInput,
+  cappedMeta,
   clampExtendWindow,
   clampLimit,
   composeEnrichment,
@@ -24,10 +28,10 @@ import {
   ignoreMethodsInput,
   invocationClock,
   pageInputs,
+  placeholderRegionNotice,
   relatedMembershipNotice,
   relatedScope,
   renderOutput,
-  SERVED_CAPS,
   scopeInputs,
   sourceFilter,
   unknownCodeNotice,
@@ -48,7 +52,7 @@ const Output = z.object({
 });
 export const getAlerts = tool('ioda_get_alerts', {
   description:
-    'Retrieve IODA detection and recovery transitions in an explicit Unix-second window of at most 31 days. Omit entity filters for global scope; a code requires entityType. relatedToType and relatedToCode limit results to entityType entities within one country, region, ASN, or geoasn, served at page 0 only. Each transition retains its source, level, condition, value and baseline; levels and baselines are not a source-independent severity scale. Transitions include both requested bounds, widened by extendWindowSeconds; adjacent windows can duplicate boundary detections. ignoreMethods excludes source.method, source.*, or *.method upstream. Missing transitions do not establish health. Pages are zero-based; keep filters and limit fixed.',
+    "Retrieve IODA detection and recovery transitions in an explicit Unix-second window of at most 31 days. Omit entity filters for global scope; a code requires entityType. relatedToType and relatedToCode limit results to entityType entities within one country, region, ASN, or geoasn, served at page 0 only. Each transition retains its source, level, condition, value and baseline; levels and baselines are not a source-independent severity scale. A recovery's historyValue can be a baseline IODA re-based during a long event; compare its value with the detection's historyValue and condition. Transitions include both requested bounds, widened by extendWindowSeconds; adjacent windows can duplicate boundary detections. ignoreMethods excludes source.method, source.*, or *.method upstream. Missing transitions do not establish health. Pages are zero-based; keep filters and limit fixed.",
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: true },
   input: z.object({
     ...filterInputs,
@@ -56,14 +60,14 @@ export const getAlerts = tool('ioda_get_alerts', {
     ...windowInputs,
     ...pageInputs,
     ignoreMethods: ignoreMethodsInput,
-    extendWindowSeconds: z
-      .number()
-      .int()
-      .min(0)
-      .max(SERVED_CAPS.extendWindowSeconds * 10)
+    extendWindowSeconds: cappedInput('extendWindowSeconds', 0)
       .default(0)
-      .describe(
-        'Seconds before from and after until to also return transitions from; zero, the default, returns only transitions inside the window. Without entityType, large extensions are slow globally and can time out, so add entityType or keep the extension small. Values above 1209600 (14 days) are served as 1209600 with a notice.',
+      .meta(
+        cappedMeta(
+          'extendWindowSeconds',
+          (clamped, cap) =>
+            `Seconds before from and after until to also return transitions from; zero, the default, returns only transitions inside the window. Without entityType, large extensions are slow globally and can time out, so add entityType or keep the extension small. ${clamped ? `Values above ${cap} (14 days) are served as ${cap} with a notice.` : `At most ${cap} (14 days).`}`,
+        ),
       ),
   }),
   output: Output,
@@ -155,17 +159,9 @@ export const getAlerts = tool('ioda_get_alerts', {
       reason: 'upstream_schema',
       code: JsonRpcErrorCode.SerializationError,
       thrownBy: 'service',
-      when: 'IODA data or bucket metadata does not validate.',
+      when: 'IODA data or bucket metadata does not validate, or the response body is over 4 MiB.',
       recovery:
         'Retry ioda_get_alerts once with a narrower window; if the response still cannot be parsed, stop this investigation and report the response schema failure.',
-    },
-    {
-      reason: 'response_too_large',
-      code: JsonRpcErrorCode.ValidationError,
-      thrownBy: 'service',
-      when: 'The upstream body or combined response exceeds its byte budget.',
-      recovery:
-        'Call ioda_get_alerts with a narrower window or smaller limit and page 0, then continue with that fixed limit.',
     },
   ],
   async handler(input, ctx) {
@@ -173,8 +169,8 @@ export const getAlerts = tool('ioda_get_alerts', {
     validateWindow(input, now);
     const source = sourceFilter(input.source);
     const ignoreMethods = ignoredMethods(input.ignoreMethods, source);
-    const limit = clampLimit(input.limit, input.page);
-    const extend = clampExtendWindow(input.extendWindowSeconds, 'ioda_get_alerts', input, now);
+    const limit = clampLimit(input.limit, input.page, ctx, 'ioda_get_alerts');
+    const extend = clampExtendWindow(input.extendWindowSeconds, 'ioda_get_alerts', input, now, ctx);
     const filter = entityFilter(input);
     const scope = relatedScope(input);
     if (scope && input.page > 0)
@@ -195,6 +191,16 @@ export const getAlerts = tool('ioda_get_alerts', {
       page: input.page,
     };
     const result = await getIodaService().getAlerts(request, ctx, { deadline });
+    const empty = !result.alerts.length;
+    // Alerts are selected from from − extension through until + extension.
+    const archive =
+      empty && !input.page
+        ? archivePosition(
+            { from: input.from - extend.value, until: input.until + extend.value },
+            'detections',
+          )
+        : undefined;
+    const ordinary = archive === 'straddles' || archive === 'after';
     return finish(
       Output,
       result,
@@ -208,12 +214,14 @@ export const getAlerts = tool('ioda_get_alerts', {
           limit.notice,
           extend.notice,
           relatedMembershipNotice('ioda_get_alerts', request),
-          !result.alerts.length &&
-            (input.page > 0
-              ? emptyPageNotice('ioda_get_alerts')
-              : 'No alert transitions were returned. An event may have started earlier. Call ioda_find_outages over this window for overlapping events, or ioda_get_signals for observations.'),
-          !result.alerts.length && !input.page && request.entityCode && unknownCodeNotice,
-          !result.alerts.length && scope && unknownScopeNotice,
+          placeholderRegionNotice(result.alerts.map((alert) => alert.entity)),
+          empty && input.page > 0 && emptyPageNotice('ioda_get_alerts'),
+          archive === 'before' && archiveNotice('detections', 'before'),
+          ordinary &&
+            'No alert transitions were returned. An event may have started earlier. Call ioda_find_outages over this window for overlapping events, or ioda_get_signals for observations.',
+          ordinary && request.entityCode && unknownCodeNotice,
+          ordinary && scope && unknownScopeNotice,
+          archive === 'straddles' && archiveNotice('detections', 'straddles'),
           scope &&
             result.pagination.more === 'possible' &&
             `This scoped page is full and IODA cannot continue scoped alerts past page 0, so more transitions may exist. ${scopedRoute}`,

@@ -4,7 +4,7 @@
  */
 import { z } from '@cyanheads/mcp-ts-core';
 import { JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
-import { runToolContract } from '@cyanheads/mcp-ts-core/testing';
+import { createMockContext, runToolContract } from '@cyanheads/mcp-ts-core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { findOutages } from '../../src/mcp-server/tools/definitions/find-outages.tool.js';
 import { getAlerts } from '../../src/mcp-server/tools/definitions/get-alerts.tool.js';
@@ -133,7 +133,7 @@ describe('endpoint-specific boundary guidance', () => {
   it.each(['ioda_find_outages', 'ioda_summarize_outages'] as const)(
     '%s extension recovery retains events ending at from',
     (tool) => {
-      const served = clampExtendWindow(1209601, tool, window, 1792886400000);
+      const served = clampExtendWindow(1209601, tool, window, 1792886400000, createMockContext());
       expect(served.notice).toContain('whose until is at or after 1792713600');
     },
   );

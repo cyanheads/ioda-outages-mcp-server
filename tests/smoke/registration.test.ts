@@ -55,6 +55,24 @@ it('registers exactly the six read-only IODA tools, identity and lifecycle', asy
   }
   expect(options.setup).toBeTypeOf('function');
   expect(options.teardown).toBeTypeOf('function');
+  // setup() parses IODA_CLAMP_LIMITS; until it runs, the schemas serve the clamping default.
+  const search = options.tools.find(
+    (tool: { name: string }) => tool.name === 'ioda_search_entities',
+  );
+  const overCap = { entityType: 'region', limit: 1001 };
+  expect(search.input.safeParse(overCap).success).toBe(true);
+  vi.stubEnv('IODA_CLAMP_LIMITS', 'false');
+  try {
+    await options.setup();
+  } finally {
+    vi.unstubAllEnvs();
+  }
+  try {
+    expect(search.input.safeParse(overCap).success).toBe(false);
+    expect(search.input.safeParse({ ...overCap, limit: 1000 }).success).toBe(true);
+  } finally {
+    await options.teardown();
+  }
   expect(options.instructions).toContain(
     'Missing alerts or entity metadata never establish healthy',
   );

@@ -5,6 +5,7 @@
 import { tool, z } from '@cyanheads/mcp-ts-core';
 import { JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
 import {
+  type Entity,
   EntitySchema,
   getIodaService,
   PaginationSchema,
@@ -23,6 +24,7 @@ import {
   finish,
   invocationClock,
   pageInputs,
+  placeholderRegionNotice,
   queryInput,
   relatedScope,
   renderOutput,
@@ -31,6 +33,22 @@ import {
   unknownScopeNotice,
 } from '../ioda-common.js';
 
+/**
+ * IODA answers an asn entityCode it holds no record of with a synthesized row whose attrs are
+ * only fqid and ip_count "0". No real ASN row sampled on 2026-11-01 carried ip_count "0", while
+ * some lack org, so ip_count alone is the sign; the row says nothing about whether series exist.
+ */
+function placeholderAsnNotice(entities: readonly Entity[]): string | undefined {
+  return (
+    entities
+      .filter((entity) => entity.type === 'asn' && entity.attrs?.ip_count === '0')
+      .map(
+        ({ code }) =>
+          `ASN ${code} came back as IODA's placeholder row (attrs.ip_count "0"), which IODA returns for an ASN it holds no record of, so the row neither confirms the ASN nor shows whether IODA measures it. Call ioda_get_signals with entityType asn, entityCode ${code}, a source, and a window to check for observations.`,
+      )
+      .join(' ') || undefined
+  );
+}
 const Output = z.object({
   entities: z.array(EntitySchema).describe('Original entity metadata; not measurement coverage.'),
   pagination: PaginationSchema.describe('Upstream page and possible continuation.'),
@@ -38,7 +56,7 @@ const Output = z.object({
 });
 export const searchEntities = tool('ioda_search_entities', {
   description:
-    'Resolve country, region, autonomous-system, or geoasn (one ASN within a region or country) names and codes for outage investigations. Choose entityType and either query or entityCode; omit both to list the type. Countries use two letters, regions numeric IODA codes, ASNs decimal digits (AS prefix accepted), geoasns an ASN and a region or country code (40934-576, 59962-IR). Add relatedToType and relatedToCode to list entityType entities within one country, region, ASN, or geoasn, such as the regions or networks of a country; a scope combines with query. Metadata does not establish measurement coverage. Pages are zero-based; keep limit fixed when continuing.',
+    'Resolve country, region, autonomous-system, or geoasn (one ASN within a region or country) names and codes for outage investigations. Choose entityType and either query or entityCode; omit both to list the type. Countries use two letters, regions numeric IODA codes, ASNs decimal digits (AS prefix accepted), geoasns an ASN and a region or country code (40934-576, 59962-IR). Add relatedToType and relatedToCode to list entityType entities within one country, region, ASN, or geoasn, such as the regions or networks of a country; a scope combines with query. Region results can include IODA geolocation catch-alls named [Invalid Region (N)] or Unknown Region in <country>, which are not provinces or states; a notice names them. Metadata does not establish measurement coverage. Pages are zero-based; keep limit fixed when continuing.',
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: true },
   input: z.object({
     entityType: entityInputs.entityType,
@@ -120,17 +138,9 @@ export const searchEntities = tool('ioda_search_entities', {
       reason: 'upstream_schema',
       code: JsonRpcErrorCode.SerializationError,
       thrownBy: 'service',
-      when: 'IODA data or bucket metadata does not validate.',
+      when: 'IODA data or bucket metadata does not validate, or the response body is over 4 MiB.',
       recovery:
         'Retry ioda_search_entities once with a smaller limit and page 0; if the response still cannot be parsed, stop this search and report the response schema failure.',
-    },
-    {
-      reason: 'response_too_large',
-      code: JsonRpcErrorCode.ValidationError,
-      thrownBy: 'service',
-      when: 'The upstream body or combined response exceeds its byte budget.',
-      recovery:
-        'Call ioda_search_entities with a smaller limit and page 0, then continue with that fixed limit.',
     },
   ],
   async handler(input, ctx) {
@@ -140,7 +150,7 @@ export const searchEntities = tool('ioda_search_entities', {
     const scope = relatedScope(input);
     const query = searchQuery(input.query);
     if (query && filter.entityCode) throw ctx.fail('conflicting_search');
-    const limit = clampLimit(input.limit, input.page);
+    const limit = clampLimit(input.limit, input.page, ctx, 'ioda_search_entities');
     const request = {
       entityType: type,
       ...(filter.entityCode && { entityCode: filter.entityCode }),
@@ -164,6 +174,8 @@ export const searchEntities = tool('ioda_search_entities', {
         { ...request, ...(scope && { scope: 'related' }) },
         [
           limit.notice,
+          placeholderRegionNotice(result.entities),
+          placeholderAsnNotice(result.entities),
           empty && (input.page > 0 ? emptyPageNotice('ioda_search_entities') : zeroHit),
           empty && !input.page && scope && unknownScopeNotice,
         ],

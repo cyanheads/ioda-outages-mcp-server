@@ -7,20 +7,42 @@ import { PUBLICATION_ALLOWANCE_SECONDS } from './status.js';
 
 /** Supported entity vocabulary; a geoasn is one ASN's footprint within a region or country. */
 export const EntityTypeSchema = z.enum(['country', 'region', 'asn', 'geoasn']);
-/** Numeric measurement sources supported by this server. */
+/** The three core numeric sources: ioda_get_status collects each, and each has an archive start. */
 export const NumericSourceSchema = z.enum(['bgp', 'ping-slash24', 'merit-nt']);
-/** IODA's published unit for each numeric source, verbatim from its /datasources listing. */
+/** IODA's published unit for each core source, verbatim from its /datasources listing. */
 export const SOURCE_UNITS = {
   bgp: 'Visible /24s',
   'ping-slash24': 'Up /24s',
   'merit-nt': 'Unique Source IPs',
 } as const satisfies Record<z.infer<typeof NumericSourceSchema>, string>;
-/** One numeric source's unit, shared by signal semantics and status entries. */
-export const UnitSchema = z
-  .enum(SOURCE_UNITS)
-  .describe(
-    "IODA's published unit for this source's values. Coarse buckets aggregate underlying samples in the same unit; values need not equal an unweighted mean of finer returned buckets, and non-null aggregates do not prove complete finer-resolution coverage.",
-  );
+/**
+ * ioda_get_signals sources: the core three plus gtr, Google Transparency Report traffic, which
+ * IODA serves for countries only. Status stays on the core three, so its schema is separate.
+ */
+export const SignalSourceSchema = z.enum([...NumericSourceSchema.options, 'gtr']);
+/** IODA's published unit for each ioda_get_signals source, verbatim from its /datasources listing. */
+export const SIGNAL_UNITS = {
+  ...SOURCE_UNITS,
+  gtr: 'Traffic',
+} as const satisfies Record<z.infer<typeof SignalSourceSchema>, string>;
+/**
+ * The UTC day IODA's v2 API first serves records on, floored from the first record found on
+ * 2026-11-01 (the same for country, region, and ASN entities): each core source's raw series,
+ * and one start shared by alerts, events, and summary rows. `gtr` has none: its series reach
+ * 2019 with gaps.
+ */
+export const ARCHIVE_STARTS = {
+  'merit-nt': Date.UTC(2022, 0, 9) / 1000,
+  bgp: Date.UTC(2022, 0, 18) / 1000,
+  'ping-slash24': Date.UTC(2022, 1, 2) / 1000,
+  detections: Date.UTC(2022, 0, 26) / 1000,
+} as const satisfies Record<z.infer<typeof NumericSourceSchema> | 'detections', number>;
+const unitDescription =
+  "IODA's published unit for this source's values. Coarse buckets aggregate underlying samples in the same unit; values need not equal an unweighted mean of finer returned buckets, and non-null aggregates do not prove complete finer-resolution coverage.";
+/** One core source's unit, as ioda_get_status entries report it. */
+export const UnitSchema = z.enum(SOURCE_UNITS).describe(unitDescription);
+/** One ioda_get_signals source's unit, as its semantics report it. */
+export const SignalUnitSchema = z.enum(SIGNAL_UNITS).describe(unitDescription);
 /** Event and alert source filters. */
 export const SourceSchema = z.enum(['bgp', 'ping-slash24', 'merit-nt', 'gtr']);
 const extras = z.json();
@@ -292,6 +314,8 @@ export const StatusEvidenceSchema = z.object({
 export type EntityType = z.infer<typeof EntityTypeSchema>;
 /** Core numeric source. */
 export type NumericSource = z.infer<typeof NumericSourceSchema>;
+/** ioda_get_signals source: a core source or gtr. */
+export type SignalSource = z.infer<typeof SignalSourceSchema>;
 /** Event/alert filter source. */
 export type Source = z.infer<typeof SourceSchema>;
 /** Lossless entity record. */

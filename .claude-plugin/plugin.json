@@ -12,12 +12,21 @@
   "repository": "https://github.com/cyanheads/ioda-outages-mcp-server",
   "license": "Apache-2.0",
   "keywords": ["mcp", "mcp-server", "model-context-protocol", "typescript", "bun", "stdio", "streamable-http", "ioda", "internet-outages", "internet-shutdowns", "internet-measurement", "bgp", "connectivity"],
+  "userConfig": {
+    "IODA_CLAMP_LIMITS": {
+      "type": "string",
+      "title": "Clamp over-cap inputs",
+      "description": "Serve an over-cap limit, maxPoints, lookbackHours, or extendWindowSeconds at its cap with a notice. Set false to reject it and advertise each cap as the schema maximum.",
+      "default": "true"
+    }
+  },
   "mcpServers": {
     "ioda-outages-mcp-server": {
       "command": "npx",
       "args": ["-y", "@cyanheads/ioda-outages-mcp-server"],
       "env": {
-        "MCP_TRANSPORT_TYPE": "stdio"
+        "MCP_TRANSPORT_TYPE": "stdio",
+        "IODA_CLAMP_LIMITS": "${user_config.IODA_CLAMP_LIMITS}"
       }
     }
   }

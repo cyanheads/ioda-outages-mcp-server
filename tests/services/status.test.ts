@@ -21,10 +21,10 @@ const series = {
   values: [99, 0, null, 900],
 };
 describe('completed buckets', () => {
-  it('summarizes large valid series below the upstream byte ceiling', () => {
+  it('summarizes large valid series below the upstream body ceiling', () => {
     const values = Array.from({ length: 200000 }, () => 0);
     const input = { ...series, from: 900, until: 60000900, values };
-    expect(JSON.stringify(input).length).toBeLessThan(2 * 1024 * 1024);
+    expect(JSON.stringify(input).length).toBeLessThan(4 * 1024 * 1024);
     expect(summarizeSeries(input, { from: 900, until: 60000900 }, 60000900)).toMatchObject({
       nonNullCount: 200000,
       minimum: 0,

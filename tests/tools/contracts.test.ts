@@ -4,8 +4,13 @@
  */
 import { z } from '@cyanheads/mcp-ts-core';
 import { JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
-import { runToolContract } from '@cyanheads/mcp-ts-core/testing';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  createMockContext,
+  type MockContextLogger,
+  runToolContract,
+} from '@cyanheads/mcp-ts-core/testing';
+import { type MeterProvider, metrics } from '@opentelemetry/api';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { findOutages } from '../../src/mcp-server/tools/definitions/find-outages.tool.js';
 import { getAlerts } from '../../src/mcp-server/tools/definitions/get-alerts.tool.js';
 import { getSignals } from '../../src/mcp-server/tools/definitions/get-signals.tool.js';
@@ -13,17 +18,23 @@ import { getStatus } from '../../src/mcp-server/tools/definitions/get-status.too
 import { searchEntities } from '../../src/mcp-server/tools/definitions/search-entities.tool.js';
 import { summarizeOutages } from '../../src/mcp-server/tools/definitions/summarize-outages.tool.js';
 import {
+  archiveNotice,
+  archivePosition,
+  cappedInput,
   clampExtendWindow,
   clampLimit,
   clampLookbackHours,
   clampMaxPoints,
   composeEnrichment,
   entityFilter,
+  isPlaceholderRegion,
+  placeholderRegionNotice,
   relatedScope,
   renderJson,
   SERVED_CAPS,
+  validateWindow,
 } from '../../src/mcp-server/tools/ioda-common.js';
-import { recoveryFor } from '../../src/services/ioda/errors.js';
+import { type IodaReason, recoveryFor } from '../../src/services/ioda/errors.js';
 import {
   AlertSchema,
   disposeIodaService,
@@ -33,6 +44,10 @@ import {
 
 const now = 1792540800000;
 const window = { from: now / 1000 - 3600, until: now / 1000 };
+const seconds = { from: String(window.from), until: String(window.until) };
+const nextPage =
+  'Another page may exist. Keep filters and limit fixed and use nextPage; restart at page 0 if changing limit.';
+const query = (url: URL | undefined) => Object.fromEntries(url?.searchParams ?? []);
 const entityInput = { entityType: 'country', entityCode: 'US' };
 const hostile = 'line one\r\n\t``` [do this](https://hostile.invalid/)\n</script> 雪';
 const entity = { code: 'US', name: hostile, attrs: { deep: [{ text: hostile, nil: null }] } };
@@ -57,12 +72,14 @@ const event = {
 };
 type Result = Awaited<ReturnType<typeof runToolContract>>;
 const calls: URL[] = [];
-/** IODA's /datasources units, verbatim. */
+/** IODA's /datasources units for the three core sources ioda_get_status collects, verbatim. */
 const units = {
   bgp: 'Visible /24s',
   'ping-slash24': 'Up /24s',
   'merit-nt': 'Unique Source IPs',
 } as const;
+/** ioda_get_signals also serves gtr, in IODA's /datasources unit for it. */
+const signalUnits = { ...units, gtr: 'Traffic' } as const;
 /** Closes an empty first scoped page: IODA lists nothing within an unknown relatedToCode. */
 const verifyScope =
   'IODA returns an empty page rather than an error for an unknown relatedToCode; call ioda_search_entities with relatedToType as entityType and relatedToCode as entityCode to verify it.';
@@ -266,7 +283,8 @@ describe('advertised lexical input patterns', () => {
                     ['ping-SLASH24', true],
                     ['merit-NT', true],
                     ['ucsd-nt', false],
-                    ['gtr', definition.name !== 'ioda_get_signals'],
+                    [' GTR ', true],
+                    ['gtr-norm', false],
                   ];
         for (const [value, valid] of cases)
           expect(regex.test(value), `${definition.name}.${field}: ${value.length}`).toBe(valid);
@@ -538,10 +556,6 @@ describe('assembled contract parity', () => {
 });
 
 describe('served caps', () => {
-  const nextPage =
-    'Another page may exist. Keep filters and limit fixed and use nextPage; restart at page 0 if changing limit.';
-  const query = (url: URL | undefined) => Object.fromEntries(url?.searchParams ?? []);
-  const seconds = { from: String(window.from), until: String(window.until) };
   it('serves every input accepted before the caps with an unchanged request, applied and enrichment', async () => {
     network(() =>
       envelope(Array.from({ length: 100 }, (_, index) => ({ code: String(index), name: 'r' }))),
@@ -673,39 +687,205 @@ describe('served caps', () => {
   });
   it('serves each over-cap value at its cap and names requested, served and the route to the rest', () => {
     const asOf = now / 1000;
+    const ctx = createMockContext();
     expect(SERVED_CAPS).toStrictEqual({
-      limit: 100,
-      maxPoints: 2000,
+      limit: 1000,
+      maxPoints: 10000,
       lookbackHours: 24,
       extendWindowSeconds: 1209600,
     });
-    expect(clampLimit(100, 5)).toStrictEqual({ value: 100 });
-    expect(clampLimit(101, 0)).toStrictEqual({
-      value: 100,
+    expect(clampLimit(1000, 5, ctx, 'ioda_find_outages')).toStrictEqual({ value: 1000 });
+    expect(clampLimit(1001, 0, ctx, 'ioda_find_outages')).toStrictEqual({
+      value: 1000,
       notice:
-        'limit 101 exceeds the cap of 100; served 100. Every limit from 100 to 1000 serves the same pages.',
+        'limit 1001 exceeds the cap of 1000; served 1000. Every limit of 1000 or more serves the same pages.',
     });
-    expect(clampLimit(1000, 2)).toStrictEqual({
-      value: 100,
+    expect(clampLimit(1500, 2, ctx, 'ioda_get_alerts')).toStrictEqual({
+      value: 1000,
       notice:
-        'limit 1000 exceeds the cap of 100; served 100. Page 2 starts after the first 200 records. Every limit from 100 to 1000 serves the same pages.',
+        'limit 1500 exceeds the cap of 1000; served 1000. Page 2 starts after the first 2000 records. Every limit of 1000 or more serves the same pages.',
     });
-    expect(clampMaxPoints(2000)).toStrictEqual({ value: 2000 });
-    expect(clampMaxPoints(2001)).toStrictEqual({
-      value: 2000,
+    expect(clampMaxPoints(10000, ctx)).toStrictEqual({ value: 10000 });
+    expect(clampMaxPoints(10001, ctx)).toStrictEqual({
+      value: 10000,
       notice:
-        'maxPoints 2001 exceeds the cap of 2000; served 2000. For finer buckets, split the window into adjacent ioda_get_signals calls; a bucket that straddles the split point is returned by both calls.',
+        'maxPoints 10001 exceeds the cap of 10000; served 10000. Every maxPoints of 10000 or more requests the same aggregation.',
     });
-    expect(clampLookbackHours(24, asOf)).toStrictEqual({ value: 24 });
-    expect(clampLookbackHours(240, asOf)).toStrictEqual({
+    expect(clampLookbackHours(24, asOf, ctx)).toStrictEqual({ value: 24 });
+    expect(clampLookbackHours(240, asOf, ctx)).toStrictEqual({
       value: 24,
       notice:
         'lookbackHours 240 exceeds the cap of 24; served 24. For the uncovered earlier window, call ioda_find_outages, ioda_get_alerts, or ioda_get_signals (once per source) with the same entityType and entityCode, from 1791676800 and until 1792454400.',
     });
-    expect(clampExtendWindow(0, 'ioda_find_outages', window, now)).toStrictEqual({ value: 0 });
-    expect(clampExtendWindow(1209600, 'ioda_find_outages', window, now)).toStrictEqual({
+    expect(clampExtendWindow(0, 'ioda_find_outages', window, now, ctx)).toStrictEqual({
+      value: 0,
+    });
+    expect(clampExtendWindow(1209600, 'ioda_find_outages', window, now, ctx)).toStrictEqual({
       value: 1209600,
     });
+  });
+  it.each([25, 240, 768, 769, 2000])(
+    'names an uncovered lookbackHours %i window that validates, at most 31 days ending at the served window',
+    (requested) => {
+      const asOf = now / 1000;
+      const notice = clampLookbackHours(requested, asOf, createMockContext()).notice ?? '';
+      const [, from, until] = /from (\d+) and until (\d+)/.exec(notice) ?? [];
+      const uncovered = { from: Number(from), until: Number(until) };
+      expect(uncovered.until).toBe(asOf - 86400);
+      expect(uncovered.until - uncovered.from).toBe(Math.min((requested - 24) * 3600, 2678400));
+      expect(() => validateWindow(uncovered, now)).not.toThrow();
+    },
+  );
+  it('names an uncovered window of exactly 31 days as one call, not as over the limit', () => {
+    expect(clampLookbackHours(768, now / 1000, createMockContext()).notice).toBe(
+      'lookbackHours 768 exceeds the cap of 24; served 24. For the uncovered earlier window, call ioda_find_outages, ioda_get_alerts, or ioda_get_signals (once per source) with the same entityType and entityCode, from 1789776000 and until 1792454400.',
+    );
+  });
+  it.each([1.5, 20.000000000000004])(
+    'rejects limit %d with exactly one whole-number issue',
+    (value) => {
+      const parsed = cappedInput('limit', 1).safeParse(value);
+      expect(parsed.error?.issues.map((issue) => issue.message)).toEqual([
+        'Use a whole number for limit.',
+      ]);
+    },
+  );
+  it.each([1.5, 20.000000000000004])(
+    'fails limit %d as invalid_arguments naming the whole-number rule before HTTP',
+    async (limit) => {
+      network(() => {
+        throw new Error('unexpected network');
+      });
+      const error = failure(
+        await runToolContract(searchEntities, { entityType: 'region', limit }),
+        JsonRpcErrorCode.InvalidParams,
+      );
+      expect(error.data?.reason).toBe('invalid_arguments');
+      expect(error.message).toBe(
+        'Input validation error: Invalid arguments for tool ioda_search_entities: limit: Use a whole number for limit.',
+      );
+      expect((error.data as { issues?: unknown[] }).issues).toHaveLength(1);
+      expect(calls).toHaveLength(0);
+    },
+  );
+  it('serves a whole limit of 2**60 at the cap', async () => {
+    network(() => envelope([]));
+    const data = parity(
+      await runToolContract(searchEntities, { entityType: 'region', limit: 2 ** 60 }),
+    );
+    expect(query(calls[0])).toMatchObject({ limit: '1000' });
+    expect(data.applied).toMatchObject({ limit: 1000 });
+    // 2 ** 60 prints as its shortest round-trip decimal, as JSON.stringify writes it.
+    expect(data.notice).toBe(
+      'limit 1152921504606847000 exceeds the cap of 1000; served 1000. Every limit of 1000 or more serves the same pages. IODA lists no region entities.',
+    );
+  });
+  it('logs each clamp with tool, input, requested and served, and nothing at the cap', () => {
+    const ctx = createMockContext();
+    const log = ctx.log as MockContextLogger;
+    clampLimit(1000, 0, ctx, 'ioda_find_outages');
+    clampMaxPoints(10000, ctx);
+    clampLookbackHours(24, now / 1000, ctx);
+    clampExtendWindow(1209600, 'ioda_get_alerts', window, now, ctx);
+    expect(log.calls).toEqual([]);
+    clampLimit(5000, 3, ctx, 'ioda_find_outages');
+    clampMaxPoints(10001, ctx);
+    clampLookbackHours(25, now / 1000, ctx);
+    clampExtendWindow(1209601, 'ioda_get_alerts', window, now, ctx);
+    const served = (tool: string, input: string, requested: number, cap: number) => ({
+      level: 'info',
+      msg: `Served ${input} at its cap`,
+      data: { tool, input, requested, served: cap },
+    });
+    expect(log.calls).toEqual([
+      served('ioda_find_outages', 'limit', 5000, 1000),
+      served('ioda_get_signals', 'maxPoints', 10001, 10000),
+      served('ioda_get_status', 'lookbackHours', 25, 24),
+      served('ioda_get_alerts', 'extendWindowSeconds', 1209601, 1209600),
+    ]);
+  });
+  it('counts each clamp labelled by tool and input name, never the requested value', async () => {
+    const created: unknown[][] = [];
+    const added: unknown[][] = [];
+    const meter = {
+      createCounter: (...args: unknown[]) => {
+        created.push(args);
+        return { add: (...values: unknown[]) => added.push(values) };
+      },
+    };
+    expect(
+      metrics.setGlobalMeterProvider({ getMeter: () => meter } as unknown as MeterProvider),
+    ).toBe(true);
+    try {
+      // A fresh module, so its counter is created on the first clamp from the provider above.
+      vi.resetModules();
+      const fresh = await import('../../src/mcp-server/tools/ioda-common.js');
+      const ctx = createMockContext();
+      fresh.clampLimit(1000, 0, ctx, 'ioda_find_outages');
+      expect(created).toEqual([]);
+      fresh.clampLimit(5000, 3, ctx, 'ioda_find_outages');
+      fresh.clampMaxPoints(10001, ctx);
+      fresh.clampLookbackHours(25, now / 1000, ctx);
+      fresh.clampExtendWindow(1209601, 'ioda_summarize_outages', window, now, ctx);
+      expect(created).toEqual([
+        [
+          'ioda.input.clamps',
+          { description: 'Over-cap inputs served at their cap', unit: '{clamps}' },
+        ],
+      ]);
+      expect(added).toEqual([
+        [1, { 'mcp.tool.name': 'ioda_find_outages', 'ioda.input.name': 'limit' }],
+        [1, { 'mcp.tool.name': 'ioda_get_signals', 'ioda.input.name': 'maxPoints' }],
+        [1, { 'mcp.tool.name': 'ioda_get_status', 'ioda.input.name': 'lookbackHours' }],
+        [
+          1,
+          { 'mcp.tool.name': 'ioda_summarize_outages', 'ioda.input.name': 'extendWindowSeconds' },
+        ],
+      ]);
+    } finally {
+      metrics.disable();
+      vi.resetModules();
+    }
+  });
+  it('declares only argument reasons and the service failure surface on every tool', () => {
+    /** Every IodaReason, so adding one to the service fails typecheck until it is listed here. */
+    const service: Record<IodaReason, true> = {
+      upstream_bad_request: true,
+      upstream_unprocessable: true,
+      entity_not_found: true,
+      upstream_rate_limited: true,
+      upstream_queue_full: true,
+      upstream_schema: true,
+      upstream_unavailable: true,
+      upstream_timeout: true,
+      upstream_unauthorized: true,
+      upstream_forbidden: true,
+      request_cancelled: true,
+    };
+    const definitions = [
+      searchEntities,
+      getStatus,
+      findOutages,
+      summarizeOutages,
+      getSignals,
+      getAlerts,
+    ];
+    /** The argument reasons handlers throw before any request; a new one is reviewed here. */
+    const argument = new Set([
+      'invalid_entity',
+      'invalid_scope',
+      'invalid_window',
+      'invalid_ignore_methods',
+      'conflicting_search',
+    ]);
+    for (const definition of definitions) {
+      expect(definition.errors?.length, definition.name).toBeGreaterThan(0);
+      for (const { reason } of definition.errors ?? [])
+        expect(
+          argument.has(reason) || Object.hasOwn(service, reason),
+          `${definition.name} declares ${reason}`,
+        ).toBe(true);
+    }
   });
   describe('over-cap extension tails', () => {
     const served = (requested: number) =>
@@ -759,7 +939,7 @@ describe('served caps', () => {
       ],
     ] as const;
     it.each(tails)('%s', (_, tool, requested, bounds, tail) => {
-      expect(clampExtendWindow(requested, tool, bounds, now)).toStrictEqual({
+      expect(clampExtendWindow(requested, tool, bounds, now, createMockContext())).toStrictEqual({
         value: 1209600,
         notice: `${served(requested)} ${tail}`,
       });
@@ -774,7 +954,8 @@ describe('served caps', () => {
     it.each(tails)(
       'prints windows that validate and serve unclamped: %s',
       async (_, tool, requested, bounds) => {
-        const notice = clampExtendWindow(requested, tool, bounds, now).notice ?? '';
+        const notice =
+          clampExtendWindow(requested, tool, bounds, now, createMockContext()).notice ?? '';
         const recipes = [...notice.matchAll(/from (\d+)(?:,| and) until (\d+)/g)];
         expect(recipes.length).toBe(tool === 'ioda_get_alerts' && bounds === old ? 2 : 1);
         const recipeTool = tool === 'ioda_get_alerts' ? tool : 'ioda_find_outages';
@@ -837,23 +1018,23 @@ describe('served caps', () => {
   });
   it('serves an over-cap search limit and composes its notice with the next page', async () => {
     network(() =>
-      envelope(Array.from({ length: 100 }, (_, index) => ({ code: String(index), name: 'r' }))),
+      envelope(Array.from({ length: 1000 }, (_, index) => ({ code: String(index), name: 'r' }))),
     );
     const data = parity(
-      await runToolContract(searchEntities, { entityType: 'region', limit: 150, page: 1 }),
+      await runToolContract(searchEntities, { entityType: 'region', limit: 1500, page: 1 }),
     );
-    expect(query(calls[0])).toEqual({ entityType: 'region', limit: '100', page: '1' });
-    expect(data.applied).toEqual({ entityType: 'region', limit: 100, page: 1 });
+    expect(query(calls[0])).toEqual({ entityType: 'region', limit: '1000', page: '1' });
+    expect(data.applied).toEqual({ entityType: 'region', limit: 1000, page: 1 });
     expect(data.pagination).toEqual({
       page: 1,
-      limit: 100,
-      returned: 100,
+      limit: 1000,
+      returned: 1000,
       more: 'possible',
       nextPage: 2,
     });
-    expect(data.truncated).toEqual({ shown: 100, cap: 100 });
+    expect(data.truncated).toEqual({ shown: 1000, cap: 1000 });
     expect(data.notice).toBe(
-      `limit 150 exceeds the cap of 100; served 100. Page 1 starts after the first 100 records. Every limit from 100 to 1000 serves the same pages. ${nextPage}`,
+      `limit 1500 exceeds the cap of 1000; served 1000. Page 1 starts after the first 1000 records. Every limit of 1000 or more serves the same pages. ${nextPage}`,
     );
   });
   it('serves over-cap event limit and extension and composes them with the empty-page notice', async () => {
@@ -862,16 +1043,16 @@ describe('served caps', () => {
       await runToolContract(findOutages, {
         ...window,
         ...entityInput,
-        limit: 1000,
+        limit: 1001,
         extendWindowSeconds: 12096000,
       }),
     );
-    expect(query(calls[0])).toMatchObject({ limit: '100', extendWindow: '1209600', page: '0' });
-    expect(data.applied).toMatchObject({ limit: 100, extendWindowSeconds: 1209600 });
-    expect(data.pagination).toEqual({ page: 0, limit: 100, returned: 0, more: 'no' });
+    expect(query(calls[0])).toMatchObject({ limit: '1000', extendWindow: '1209600', page: '0' });
+    expect(data.applied).toMatchObject({ limit: 1000, extendWindowSeconds: 1209600 });
+    expect(data.pagination).toEqual({ page: 0, limit: 1000, returned: 0, more: 'no' });
     expect(data.truncated).toBeUndefined();
     expect(data.notice).toBe(
-      'limit 1000 exceeds the cap of 100; served 100. Every limit from 100 to 1000 serves the same pages. extendWindowSeconds 12096000 exceeds the cap of 1209600; served 1209600. An event overlapping the window that began more than 1209600 seconds before from can be missing or reported with a later start. To search earlier starts, call ioda_find_outages at page 0 with from 1789858801, until 1792537201, extendWindowSeconds 1209600, and the other filters unchanged, then keep only the events whose until is at or after 1792537200. No detected events were returned for this scope and window. Call ioda_get_signals for measurement coverage, or ioda_find_outages with a wider window or fewer filters. This is not an all-clear. IODA returns an empty page rather than an error for an unknown entityCode; call ioda_search_entities with the same entityType and entityCode to verify it.',
+      'limit 1001 exceeds the cap of 1000; served 1000. Every limit of 1000 or more serves the same pages. extendWindowSeconds 12096000 exceeds the cap of 1209600; served 1209600. An event overlapping the window that began more than 1209600 seconds before from can be missing or reported with a later start. To search earlier starts, call ioda_find_outages at page 0 with from 1789858801, until 1792537201, extendWindowSeconds 1209600, and the other filters unchanged, then keep only the events whose until is at or after 1792537200. No detected events were returned for this scope and window. Call ioda_get_signals for measurement coverage, or ioda_find_outages with a wider window or fewer filters. This is not an all-clear. IODA returns an empty page rather than an error for an unknown entityCode; call ioda_search_entities with the same entityType and entityCode to verify it.',
     );
   });
   it('serves over-cap alert limit and extension on a past-end page', async () => {
@@ -879,16 +1060,16 @@ describe('served caps', () => {
     const data = parity(
       await runToolContract(getAlerts, {
         ...window,
-        limit: 101,
+        limit: 1001,
         extendWindowSeconds: 1209601,
         page: 3,
       }),
     );
-    expect(query(calls[0])).toMatchObject({ limit: '100', extendWindow: '1209600', page: '3' });
-    expect(data.applied).toMatchObject({ limit: 100, extendWindowSeconds: 1209600, page: 3 });
-    expect(data.pagination).toEqual({ page: 3, limit: 100, returned: 0, more: 'no' });
+    expect(query(calls[0])).toMatchObject({ limit: '1000', extendWindow: '1209600', page: '3' });
+    expect(data.applied).toMatchObject({ limit: 1000, extendWindowSeconds: 1209600, page: 3 });
+    expect(data.pagination).toEqual({ page: 3, limit: 1000, returned: 0, more: 'no' });
     expect(data.notice).toBe(
-      'limit 101 exceeds the cap of 100; served 100. Page 3 starts after the first 300 records. Every limit from 100 to 1000 serves the same pages. extendWindowSeconds 1209601 exceeds the cap of 1209600; served 1209600. Transitions more than 1209600 seconds before from are not returned. To reach them, call ioda_get_alerts at page 0 with from 1792537199, until 1792540800, extendWindowSeconds 1209600, and the other filters unchanged. This page is empty. Call ioda_get_alerts with page 0 and unchanged filters, or return to the previous page.',
+      'limit 1001 exceeds the cap of 1000; served 1000. Page 3 starts after the first 3000 records. Every limit of 1000 or more serves the same pages. extendWindowSeconds 1209601 exceeds the cap of 1209600; served 1209600. Transitions more than 1209600 seconds before from are not returned. To reach them, call ioda_get_alerts at page 0 with from 1792537199, until 1792540800, extendWindowSeconds 1209600, and the other filters unchanged. This page is empty. Call ioda_get_alerts with page 0 and unchanged filters, or return to the previous page.',
     );
   });
   it('keeps a transition after until and routes both sides of an older over-cap alert window', async () => {
@@ -908,24 +1089,30 @@ describe('served caps', () => {
       'extendWindowSeconds 2000000 exceeds the cap of 1209600; served 1209600. Transitions more than 1209600 seconds before from or after until are not returned. To reach the earlier ones, call ioda_get_alerts at page 0 with from 1789746800, until 1790540800, extendWindowSeconds 1209600, and the other filters unchanged; for the later ones, use from 1790537200 and until 1791331200 instead.',
     );
   });
-  it('serves over-cap maxPoints at 2000 alone and composed with the empty-series notice', async () => {
+  it('serves over-cap maxPoints at 10000 alone and composed with the empty-series notice', async () => {
+    // Complete buckets ending two hours before the call, so no publication notice joins these.
+    const earlier = { from: window.from - 7200, until: window.until - 7200 };
     const series = {
       entityType: 'country',
       entityCode: 'US',
       datasource: 'bgp',
-      from: window.from,
-      until: window.until,
+      ...earlier,
       step: 1800,
       nativeStep: 300,
-      values: [1, null],
+      values: [1, 2],
     };
     const clamp =
-      'maxPoints 20000 exceeds the cap of 2000; served 2000. For finer buckets, split the window into adjacent ioda_get_signals calls; a bucket that straddles the split point is returned by both calls.';
+      'maxPoints 20000 exceeds the cap of 10000; served 10000. Every maxPoints of 10000 or more requests the same aggregation.';
     network(() => envelope([[series]]));
-    const input = { ...window, ...entityInput, source: 'bgp', maxPoints: 20000 };
+    const input = { ...earlier, ...entityInput, source: 'bgp', maxPoints: 20000 };
     let data = parity(await runToolContract(getSignals, input));
-    expect(query(calls[0])).toEqual({ ...seconds, datasource: 'bgp', maxPoints: '2000' });
-    expect(data.applied).toEqual({ ...window, ...entityInput, source: 'bgp', maxPoints: 2000 });
+    expect(query(calls[0])).toEqual({
+      from: String(earlier.from),
+      until: String(earlier.until),
+      datasource: 'bgp',
+      maxPoints: '10000',
+    });
+    expect(data.applied).toEqual({ ...earlier, ...entityInput, source: 'bgp', maxPoints: 10000 });
     expect(data.series).toEqual([series]);
     expect(data.notice).toBe(
       `${clamp} Coarse series aggregate underlying samples, so values need not equal an unweighted mean of finer returned buckets; a non-null aggregate cannot establish complete finer-resolution coverage. Request a narrower window with ioda_get_signals to inspect finer observations.`,
@@ -970,46 +1157,18 @@ describe('served caps', () => {
       () => runToolContract(searchEntities, { entityType: 'region', limit: 0 }),
     ],
     [
-      'limit: Too big: expected number to be <=1000',
-      () => runToolContract(searchEntities, { entityType: 'region', limit: 1001 }),
-    ],
-    [
-      'limit: Too big: expected number to be <=1000',
-      () => runToolContract(findOutages, { ...window, limit: 1001 }),
-    ],
-    [
-      'limit: Too big: expected number to be <=1000',
-      () => runToolContract(getAlerts, { ...window, limit: 1001 }),
-    ],
-    [
       'maxPoints: Too small: expected number to be >=1',
       () => runToolContract(getSignals, { ...signal, maxPoints: 0 }),
-    ],
-    [
-      'maxPoints: Too big: expected number to be <=20000',
-      () => runToolContract(getSignals, { ...signal, maxPoints: 20001 }),
     ],
     [
       'lookbackHours: Too small: expected number to be >=1',
       () => runToolContract(getStatus, { ...entityInput, lookbackHours: 0 }),
     ],
     [
-      'lookbackHours: Too big: expected number to be <=240',
-      () => runToolContract(getStatus, { ...entityInput, lookbackHours: 241 }),
-    ],
-    [
       'extendWindowSeconds: Too small: expected number to be >=0',
       () => runToolContract(findOutages, { ...window, extendWindowSeconds: -1 }),
     ],
-    [
-      'extendWindowSeconds: Too big: expected number to be <=12096000',
-      () => runToolContract(findOutages, { ...window, extendWindowSeconds: 12096001 }),
-    ],
-    [
-      'extendWindowSeconds: Too big: expected number to be <=12096000',
-      () => runToolContract(getAlerts, { ...window, extendWindowSeconds: 12096001 }),
-    ],
-  ])('still rejects outside the schema bounds before HTTP: %s', async (bound, run) => {
+  ])('still rejects below the schema minimum before HTTP: %s', async (bound, run) => {
     network(() => {
       throw new Error('unexpected network');
     });
@@ -1020,14 +1179,406 @@ describe('served caps', () => {
   });
 });
 
+describe('whole pages at the served caps', () => {
+  const day = { from: window.until - 86400, until: window.until };
+  /** An asn event about as wide as IODA's, with its detection and recovery transitions. */
+  function asnEvent(index: number) {
+    const network = {
+      code: String(64500 + index),
+      name: `AS${64500 + index} ${'n'.repeat(48)}`,
+      type: 'asn',
+      attrs: { org: 'o'.repeat(64), fqid: `asn.${64500 + index}` },
+    };
+    const transition = (level: string, time: number) => ({
+      entity: network,
+      datasource: 'ping-slash24',
+      time,
+      level,
+      condition: '< 0.8',
+      value: 120 + index,
+      historyValue: 300,
+      method: 'ping-slash24.median',
+    });
+    return {
+      entity: network,
+      from: day.from - 600,
+      until: day.until,
+      score: 1000 + index,
+      datasource: 'ping-slash24',
+      method: 'ping-slash24.median',
+      alerts: [transition('critical', day.from - 600), transition('normal', day.until)],
+    };
+  }
+  /** IODA's rows for the forwarded page and limit over `total` rows. */
+  function paged(total: number, row: (index: number) => unknown) {
+    return (url: URL) => {
+      const limit = Number(url.searchParams.get('limit'));
+      const page = Number(url.searchParams.get('page'));
+      const count = Math.max(0, Math.min(limit, total - page * limit));
+      return envelope(Array.from({ length: count }, (_, index) => row(page * limit + index)));
+    };
+  }
+  function measure(result: Result) {
+    const encoder = new TextEncoder();
+    return (
+      encoder.encode(JSON.stringify(result.structuredContent)).byteLength +
+      result.content.reduce(
+        (bytes, block) =>
+          bytes + (block.type === 'text' ? encoder.encode(block.text).byteLength : 0),
+        0,
+      )
+    );
+  }
+  it('returns a one-day asn page of 100 events with nested alerts whole on both surfaces', async () => {
+    network(paged(683, asnEvent));
+    const result = await runToolContract(findOutages, {
+      ...day,
+      entityType: 'asn',
+      limit: 100,
+      includeAlerts: true,
+    });
+    const data = parity(result);
+    expect(data.events).toEqual(Array.from({ length: 100 }, (_, index) => asnEvent(index)));
+    expect(query(calls[0])).toMatchObject({
+      entityType: 'asn',
+      includeAlerts: 'true',
+      limit: '100',
+      page: '0',
+    });
+    expect(data.pagination).toEqual({
+      page: 0,
+      limit: 100,
+      returned: 100,
+      more: 'possible',
+      nextPage: 1,
+    });
+    expect(data.notice).toBe(nextPage);
+    expect(measure(result)).toBeGreaterThan(150_000);
+  });
+  it('forwards limit 1000 and each page unchanged, so a fixed-limit walk returns every row once', async () => {
+    const row = (index: number) => ({
+      entity: { code: String(index), name: 'n' },
+      from: day.from,
+      until: day.until,
+      score: index,
+      datasource: 'bgp',
+    });
+    const rows: unknown[] = [];
+    for (const page of [0, 1, 2, 3]) {
+      // A fresh service per call, so the shared pacer's start gap never waits on fake timers.
+      network(paged(2100, row));
+      const data = parity(
+        await runToolContract(findOutages, { ...day, entityType: 'asn', limit: 1000, page }),
+      );
+      rows.push(...(data.events as unknown[]));
+      const returned = [1000, 1000, 100, 0][page] ?? 0;
+      expect(data.pagination).toEqual({
+        page,
+        limit: 1000,
+        returned,
+        more: returned === 1000 ? 'possible' : 'no',
+        ...(returned === 1000 && { nextPage: page + 1 }),
+      });
+      expect(data.applied).toMatchObject({ limit: 1000, page });
+    }
+    expect(
+      calls.map((url) => [url.searchParams.get('limit'), url.searchParams.get('page')]),
+    ).toEqual([
+      ['1000', '0'],
+      ['1000', '1'],
+      ['1000', '2'],
+      ['1000', '3'],
+    ]);
+    expect(rows).toEqual(Array.from({ length: 2100 }, (_, index) => row(index)));
+  });
+  const named = (index: number) => ({ code: String(index), name: 'n' });
+  const lists = [
+    ['ioda_search_entities', searchEntities, {}, named],
+    [
+      'ioda_find_outages',
+      findOutages,
+      day,
+      (index: number) => ({ entity: named(index), from: day.from, until: day.until, score: 1 }),
+    ],
+    [
+      'ioda_summarize_outages',
+      summarizeOutages,
+      day,
+      (index: number) => ({
+        entity: named(index),
+        scores: { overall: 2100 - index },
+        event_cnt: 1,
+      }),
+    ],
+    [
+      'ioda_get_alerts',
+      getAlerts,
+      day,
+      (index: number) => ({ entity: named(index), datasource: 'bgp', time: day.from }),
+    ],
+  ] as const;
+  it.each(lists)(
+    'serves %s at limit 1000 unchanged and 1001 at 1000 with a notice naming both',
+    async (_, definition, bounds, row) => {
+      const input = { ...bounds, entityType: 'asn' };
+      network(paged(2100, row));
+      let data = parity(await runToolContract(definition, { ...input, limit: 1000 }));
+      expect(calls[0]?.searchParams.get('limit')).toBe('1000');
+      expect(data.applied).toMatchObject({ limit: 1000 });
+      expect(data.pagination).toMatchObject({ limit: 1000, returned: 1000 });
+      expect(rowGuidance(data.notice)).toBe(nextPage);
+      network(paged(2100, row));
+      data = parity(await runToolContract(definition, { ...input, limit: 1001, page: 1 }));
+      expect(calls[1]?.searchParams.get('limit')).toBe('1000');
+      expect(calls[1]?.searchParams.get('page')).toBe('1');
+      expect(data.applied).toMatchObject({ limit: 1000, page: 1 });
+      expect(data.pagination).toMatchObject({ page: 1, limit: 1000, returned: 1000 });
+      expect(data.truncated).toEqual({ shown: 1000, cap: 1000 });
+      expect(rowGuidance(data.notice)).toBe(
+        `limit 1001 exceeds the cap of 1000; served 1000. Page 1 starts after the first 1000 records. Every limit of 1000 or more serves the same pages. ${nextPage}`,
+      );
+    },
+  );
+  it('serves maxPoints 10000 unchanged and 10001 as 10000 with the same disclosure', async () => {
+    network(() => envelope([[]]));
+    const input = { ...window, ...entityInput, source: 'bgp' };
+    let data = parity(await runToolContract(getSignals, { ...input, maxPoints: 10000 }));
+    expect(calls[0]?.searchParams.get('maxPoints')).toBe('10000');
+    expect(data.applied).toMatchObject({ maxPoints: 10000 });
+    expect(data.notice).not.toMatch(/exceeds the cap/);
+    network(() => envelope([[]]));
+    data = parity(await runToolContract(getSignals, { ...input, maxPoints: 10001 }));
+    expect(calls[1]?.searchParams.get('maxPoints')).toBe('10000');
+    expect(data.applied).toMatchObject({ maxPoints: 10000 });
+    expect(data.notice).toBe(
+      'maxPoints 10001 exceeds the cap of 10000; served 10000. Every maxPoints of 10000 or more requests the same aggregation. No observations were returned. Call ioda_search_entities to verify the code, or ioda_get_signals with another core source or an earlier window. Missing data does not establish healthy connectivity.',
+    );
+  });
+  it('serves lookbackHours 2000 as 24 and names the latest 31 days of the uncovered window as a call that validates', async () => {
+    network((url) => envelope(url.pathname.includes('/signals/') ? [[]] : []));
+    const pending = runToolContract(getStatus, { ...entityInput, lookbackHours: 2000 });
+    await vi.advanceTimersByTimeAsync(9000);
+    const data = parity(await pending);
+    const asOf = now / 1000;
+    expect(data.window).toEqual({ from: asOf - 86400, until: asOf });
+    expect(data.applied).toMatchObject({ lookbackHours: 24 });
+    const until = asOf - 86400;
+    const from = until - 2678400;
+    expect(data.notice).toBe(
+      `lookbackHours 2000 exceeds the cap of 24; served 24. The uncovered earlier window spans 1976 hours, over the 31-day window limit. For its latest 31 days, call ioda_find_outages, ioda_get_alerts, or ioda_get_signals (once per source) with the same entityType and entityCode, from ${from} and until ${until}; for earlier hours back to from ${until - 1976 * 3600}, repeat with adjacent windows of at most 31 days, each ending at the previous from.`,
+    );
+    for (const [definition, extra] of [
+      [findOutages, {}],
+      [getAlerts, {}],
+      [getSignals, { source: 'bgp' }],
+    ] as const) {
+      calls.length = 0;
+      network((url) => envelope(url.pathname.includes('/signals/') ? [[]] : []));
+      parity(await runToolContract(definition, { ...entityInput, ...extra, from, until }));
+      expect(calls).toHaveLength(1);
+      expect(query(calls[0])).toMatchObject({ from: String(from), until: String(until) });
+    }
+  });
+  it.each([
+    [searchEntities, 'limit'],
+    [findOutages, 'limit'],
+    [summarizeOutages, 'limit'],
+    [getAlerts, 'limit'],
+    [getSignals, 'maxPoints'],
+    [getStatus, 'lookbackHours'],
+    [findOutages, 'extendWindowSeconds'],
+    [summarizeOutages, 'extendWindowSeconds'],
+    [getAlerts, 'extendWindowSeconds'],
+  ] as const)(
+    'advertises %s.%s as a whole number with a minimum and no maximum',
+    (definition, field) => {
+      const schema = definition.input['~standard'].jsonSchema.input({ target: 'draft-2020-12' });
+      const property = (schema.properties as Record<string, Record<string, unknown>>)[field];
+      expect(property).toMatchObject({
+        type: 'integer',
+        minimum: field === 'extendWindowSeconds' ? 0 : 1,
+      });
+      expect(property).not.toHaveProperty('maximum');
+    },
+  );
+  const clampedLimit =
+    'Default 20; a larger value returns at most 1000 and says so. Keep fixed when continuing.';
+  it.each([
+    ['ioda_search_entities', 'limit', searchEntities, clampedLimit],
+    ['ioda_find_outages', 'limit', findOutages, clampedLimit],
+    ['ioda_summarize_outages', 'limit', summarizeOutages, clampedLimit],
+    ['ioda_get_alerts', 'limit', getAlerts, clampedLimit],
+    [
+      'ioda_get_signals',
+      'maxPoints',
+      getSignals,
+      'Upstream aggregation target, not a local sample cap; smaller targets lose temporal resolution. Default 200; a value above 10000 is served as 10000 and says so.',
+    ],
+    [
+      'ioda_get_status',
+      'lookbackHours',
+      getStatus,
+      'Hours before the captured invocation time; values above 24 are served as 24 with a notice naming the uncovered earlier window. The exact window is returned.',
+    ],
+  ] as const)(
+    'advertises the clamping description on %s.%s',
+    (_, field, definition, description) => {
+      const schema = definition.input['~standard'].jsonSchema.input({ target: 'draft-2020-12' });
+      expect((schema.properties as Record<string, Record<string, unknown>>)[field]).toMatchObject({
+        description,
+      });
+    },
+  );
+});
+
+describe('IODA_CLAMP_LIMITS=false', () => {
+  const caps = { limit: 1000, maxPoints: 10000, lookbackHours: 24, extendWindowSeconds: 1209600 };
+  /** Definitions from a fresh module graph, imported before the environment is parsed. */
+  const strict = {} as {
+    searchEntities: typeof searchEntities;
+    findOutages: typeof findOutages;
+    summarizeOutages: typeof summarizeOutages;
+    getAlerts: typeof getAlerts;
+    getSignals: typeof getSignals;
+    getStatus: typeof getStatus;
+  };
+  let strictNetwork: (respond: (url: URL) => Response) => void = () => {};
+  let disposeStrict = () => {};
+  beforeAll(async () => {
+    vi.resetModules();
+    const [search, find, summarize, alerts, signals, status, service] = await Promise.all([
+      import('../../src/mcp-server/tools/definitions/search-entities.tool.js'),
+      import('../../src/mcp-server/tools/definitions/find-outages.tool.js'),
+      import('../../src/mcp-server/tools/definitions/summarize-outages.tool.js'),
+      import('../../src/mcp-server/tools/definitions/get-alerts.tool.js'),
+      import('../../src/mcp-server/tools/definitions/get-signals.tool.js'),
+      import('../../src/mcp-server/tools/definitions/get-status.tool.js'),
+      import('../../src/services/ioda/index.js'),
+    ]);
+    Object.assign(strict, {
+      searchEntities: search.searchEntities,
+      findOutages: find.findOutages,
+      summarizeOutages: summarize.summarizeOutages,
+      getAlerts: alerts.getAlerts,
+      getSignals: signals.getSignals,
+      getStatus: status.getStatus,
+    });
+    strictNetwork = (respond) => {
+      service.disposeIodaService();
+      service.initIodaService({
+        fetch: (async (input) => {
+          const url = new URL(String(input));
+          expect(url.origin).toBe('https://api.ioda.inetintel.cc.gatech.edu');
+          calls.push(url);
+          return respond(url);
+        }) as typeof fetch,
+      });
+    };
+    disposeStrict = service.disposeIodaService;
+    // As setup() does after the definitions are imported; parsed once, so the stub can go.
+    vi.stubEnv('IODA_CLAMP_LIMITS', 'false');
+    (await import('../../src/config/server-config.js')).getServerConfig();
+    vi.unstubAllEnvs();
+  });
+  afterEach(() => disposeStrict());
+  afterAll(() => vi.resetModules());
+  const minimal = {
+    searchEntities: { entityType: 'region' },
+    findOutages: window,
+    summarizeOutages: { ...window, entityType: 'region' },
+    getAlerts: window,
+    getSignals: { ...window, ...entityInput, source: 'bgp' },
+    getStatus: entityInput,
+  };
+  const limit = 'Default 20, at most 1000. Keep fixed when continuing.';
+  const fields = [
+    ['ioda_search_entities', 'searchEntities', 'limit', limit],
+    ['ioda_find_outages', 'findOutages', 'limit', limit],
+    ['ioda_summarize_outages', 'summarizeOutages', 'limit', limit],
+    ['ioda_get_alerts', 'getAlerts', 'limit', limit],
+    [
+      'ioda_get_signals',
+      'getSignals',
+      'maxPoints',
+      'Upstream aggregation target, not a local sample cap; smaller targets lose temporal resolution. Default 200, at most 10000.',
+    ],
+    [
+      'ioda_get_status',
+      'getStatus',
+      'lookbackHours',
+      'Hours before the captured invocation time; at most 24. The exact window is returned.',
+    ],
+    [
+      'ioda_find_outages',
+      'findOutages',
+      'extendWindowSeconds',
+      'Seconds before from to search for the start of an event overlapping the window, and after until for its recovery; only overlapping events are returned. Defaults to 1209600 (14 days) with entityType and 86400 (one day) without it, because large global extensions can time out; the applied value is echoed. At most 1209600. Zero may miss long-running detections.',
+    ],
+    [
+      'ioda_summarize_outages',
+      'summarizeOutages',
+      'extendWindowSeconds',
+      "Seconds before from to search for the start of an event overlapping the window, and after until for its recovery; defaults to 1209600 (14 days), IODA's default. At most 1209600. Large extensions on type-only rankings can time out; zero may miss long-running detections.",
+    ],
+    [
+      'ioda_get_alerts',
+      'getAlerts',
+      'extendWindowSeconds',
+      'Seconds before from and after until to also return transitions from; zero, the default, returns only transitions inside the window. Without entityType, large extensions are slow globally and can time out, so add entityType or keep the extension small. At most 1209600 (14 days).',
+    ],
+  ] as const;
+  it.each(fields)(
+    'advertises %s.%s with its cap as maximum and the strict description',
+    (_, key, field, description) => {
+      const schema = strict[key].input['~standard'].jsonSchema.input({ target: 'draft-2020-12' });
+      expect((schema.properties as Record<string, Record<string, unknown>>)[field]).toMatchObject({
+        type: 'integer',
+        minimum: field === 'extendWindowSeconds' ? 0 : 1,
+        maximum: caps[field],
+        description,
+      });
+    },
+  );
+  it.each(fields)(
+    'rejects %s.%s one over its cap before HTTP and forwards the cap unchanged',
+    async (name, key, field) => {
+      const cap = caps[field];
+      const run = (value: number) =>
+        runToolContract(strict[key], { ...minimal[key], [field]: value } as never);
+      strictNetwork(() => {
+        throw new Error('unexpected network');
+      });
+      const error = failure(await run(cap + 1), JsonRpcErrorCode.InvalidParams);
+      expect(error.data?.reason).toBe('invalid_arguments');
+      expect(error.message).toBe(
+        `Input validation error: Invalid arguments for tool ${name}: ${field}: Too big: expected number to be <=${cap}`,
+      );
+      expect(calls).toHaveLength(0);
+
+      strictNetwork((url) => envelope(url.pathname.includes('/signals/') ? [[]] : []));
+      const pending = run(cap);
+      if (key === 'getStatus') await vi.advanceTimersByTimeAsync(9000);
+      const data = parity(await pending);
+      expect(data.applied).toMatchObject({ [field]: cap });
+      expect(data.notice ?? '').not.toMatch(/exceeds the cap/);
+      const forwarded = {
+        limit: ['limit', String(cap)],
+        maxPoints: ['maxPoints', String(cap)],
+        lookbackHours: ['from', String(now / 1000 - cap * 3600)],
+        extendWindowSeconds: ['extendWindow', String(cap)],
+      } as const;
+      const [param, value] = forwarded[field];
+      expect(calls.length).toBeGreaterThan(0);
+      for (const url of calls) expect(url.searchParams.get(param)).toBe(value);
+    },
+  );
+});
+
 describe('event extension defaults by scope', () => {
-  const query = (url: URL | undefined) => Object.fromEntries(url?.searchParams ?? []);
   const unscopedDefault =
     'extendWindowSeconds defaulted to 86400 (one day) for global scope, so events that began more than a day before from can be missing. Add entityType for the 14-day default, or pass extendWindowSeconds explicitly; large global extensions can time out.';
   const zeroHit =
     'No detected events were returned for this scope and window. Call ioda_get_signals for measurement coverage, or ioda_find_outages with a wider window or fewer filters. This is not an all-clear.';
-  const nextPage =
-    'Another page may exist. Keep filters and limit fixed and use nextPage; restart at page 0 if changing limit.';
   it('advertises both defaults and leaves an omitted extension unset until the handler resolves it', () => {
     expect(findOutages.input.parse(window).extendWindowSeconds).toBeUndefined();
     expect(findOutages.input.shape.extendWindowSeconds.description).toBe(
@@ -1168,7 +1719,7 @@ describe('errors visible on both consumption paths', () => {
       },
     );
   }
-  it.each(['gtr', 'ucsd-nt', ' ', ' GTR '])(
+  it.each(['ucsd-nt', ' ', 'gtr-norm', ' GTR-SARIMA '])(
     'rejects unsupported numeric source %j with invalid_arguments before HTTP',
     async (source) => {
       network(() => {
@@ -1179,8 +1730,9 @@ describe('errors visible on both consumption paths', () => {
         result,
         'ioda_get_signals',
         'source',
-        'Use source bgp, ping-slash24, or merit-nt; for gtr detections call ioda_find_outages or ioda_get_alerts with source gtr.',
+        'Call ioda_get_signals with source bgp, ping-slash24, merit-nt, or gtr; case and surrounding whitespace are accepted.',
       );
+      expect(error.data?.recovery?.hint).not.toMatch(/ioda_find_outages|ioda_get_alerts/);
       expect(text(result)).toContain(`Error: ${error.message}`);
       expect(calls).toHaveLength(0);
     },
@@ -1248,11 +1800,12 @@ describe('errors visible on both consumption paths', () => {
         source: 'bgp',
         from: window.until - 31 * 86400,
         until: window.until,
-        maxPoints: 2000,
+        maxPoints: 10000,
       }),
     );
-    expect(data.applied).toMatchObject({ maxPoints: 2000, from: window.until - 31 * 86400 });
-    expect(calls[0]?.searchParams.get('maxPoints')).toBe('2000');
+    expect(data.applied).toMatchObject({ maxPoints: 10000, from: window.until - 31 * 86400 });
+    expect(data.notice).not.toMatch(/exceeds the cap/);
+    expect(calls[0]?.searchParams.get('maxPoints')).toBe('10000');
   });
   it.each([400, 422, 200])(
     'resolver recovery for HTTP %i names search inputs without an impossible time window',
@@ -1423,19 +1976,18 @@ describe('errors visible on both consumption paths', () => {
   };
   const narrower =
     'Call ioda_get_signals with a narrower window; the source bucket intervals were inconsistent.';
+  const larger =
+    'Call ioda_get_signals with a larger maxPoints (up to 10000) or a narrower window; the source bucket intervals were inconsistent.';
+  /** The one-hour window holds 12 native 300-second buckets; from 12 points up it is served native. */
   it.each([
-    [
-      1,
-      'Call ioda_get_signals with a larger maxPoints (up to 2000) or a narrower window; the source bucket intervals were inconsistent.',
-    ],
-    [
-      1999,
-      'Call ioda_get_signals with a larger maxPoints (up to 2000) or a narrower window; the source bucket intervals were inconsistent.',
-    ],
-    [2000, narrower],
+    [1, larger],
+    [11, larger],
+    [12, narrower],
+    [1999, narrower],
+    [10000, narrower],
     [20000, narrower],
   ])(
-    'names maxPoints for inconsistent buckets only below the 2000 cap: %i',
+    'names maxPoints for inconsistent buckets only while the request aggregates the window: %i',
     async (maxPoints, hint) => {
       network(() => envelope([[inconsistent]]));
       const result = await runToolContract(getSignals, {
@@ -1506,6 +2058,24 @@ describe('status collection contract', () => {
       events: { extendWindowSeconds: 1209600 },
       alerts: { extendWindowSeconds: 0 },
     });
+  });
+  it('requests every status signal at maxPoints 2000, independent of the ioda_get_signals cap', async () => {
+    network((url) => envelope(url.pathname.includes('/signals/') ? [[]] : []));
+    const pending = runToolContract(getStatus, { ...entityInput, lookbackHours: 24 });
+    await vi.advanceTimersByTimeAsync(9000);
+    const data = parity(await pending);
+    const signals = calls.filter((url) => url.pathname.startsWith('/v2/signals/raw/'));
+    expect(signals.map((url) => url.searchParams.get('datasource'))).toEqual([
+      'bgp',
+      'ping-slash24',
+      'merit-nt',
+    ]);
+    expect(signals.map((url) => url.searchParams.get('maxPoints'))).toEqual([
+      '2000',
+      '2000',
+      '2000',
+    ]);
+    expect(data.applied).toMatchObject({ signals: { maxPoints: 2000 } });
   });
   it('keeps partial HTTP failures explicit with standalone recovery', async () => {
     network((url) =>
@@ -1606,7 +2176,7 @@ describe('status collection contract', () => {
 });
 
 describe('numeric source units', () => {
-  it.each(Object.entries(units))(
+  it.each(Object.entries(signalUnits))(
     'names the IODA unit for %s signals on both surfaces from a static table',
     async (source, unit) => {
       const series = {
@@ -1694,6 +2264,649 @@ describe('numeric source units', () => {
     );
     expect(AlertSchema.shape.historyValue.description).toBe(
       'Source baseline that value is compared with, on the same per-source scale as value: the source unit for bgp, ping-slash24, and merit-nt; Traffic divided by 1,000,000 and truncated for gtr.',
+    );
+  });
+});
+
+describe('gtr signals', () => {
+  /** /signals/raw/country/IR?datasource=gtr from 2019-11-14, its first six native buckets. */
+  const iran = {
+    entityType: 'country',
+    entityCode: 'IR',
+    entityName: 'Iran (Islamic Republic Of)',
+    entityFqid: 'geo.provider.AS.IR',
+    datasource: 'gtr',
+    subtype: 'WEB_SEARCH',
+    from: 1573689600,
+    until: 1573700400,
+    step: 1800,
+    nativeStep: 1800,
+    values: [1174307499, 898774895, 683700729, 566366812, 537621458, 611968020],
+  };
+  const semantics = {
+    source: 'gtr',
+    measurement: 'Google product traffic from the Google Transparency Report',
+    unit: 'Traffic',
+    caveat:
+      "Compare a country with its own history, not with other countries. A gtr alert's value is the bucket starting at its time divided by 1,000,000 and truncated; its historyValue is a forecast baseline on that scale that this series does not carry.",
+  };
+  const countriesOnly =
+    'IODA serves gtr for countries only. Call ioda_get_signals with source bgp, ping-slash24, or merit-nt for this entity, or with entityType country and a country code for gtr.';
+  it('serves a normalized gtr source for a country with Traffic semantics on both surfaces', async () => {
+    network(() => envelope([[iran]]));
+    const input = { entityType: 'country', entityCode: ' ir ', source: ' GTR ' };
+    const result = await runToolContract(getSignals, {
+      ...input,
+      from: iran.from,
+      until: iran.until,
+    });
+    const data = parity(result);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.pathname).toBe('/v2/signals/raw/country/IR');
+    expect(calls[0]?.searchParams.get('datasource')).toBe('gtr');
+    expect(data.series).toEqual([iran]);
+    expect(data.semantics).toStrictEqual(semantics);
+    expect(data.applied).toEqual({
+      entityType: 'country',
+      entityCode: 'IR',
+      source: 'gtr',
+      from: iran.from,
+      until: iran.until,
+      maxPoints: 200,
+    });
+    expect(data.notice).toBeUndefined();
+    expect(text(result)).toContain('"unit": "Traffic"');
+  });
+  it('qualifies a coarse gtr series with the shared coarse notice alone', async () => {
+    /** The same capture's 12-day window at maxPoints 20: daily means over 1800-second buckets. */
+    const daily = {
+      ...iran,
+      until: 1574726400,
+      step: 86400,
+      values: [
+        3204871923.1666665, 3271094401.7916665, 2095641050.6458333, 52895755.479166664,
+        27838870.958333332, 23940705.166666668, 24462729.729166668, 71280401.35416667,
+        130473616.95833333, 1019915377.8125, 1713237319.2083333, 1677985208.3125,
+      ],
+    };
+    network(() => envelope([[daily]]));
+    const data = parity(
+      await runToolContract(getSignals, {
+        entityType: 'country',
+        entityCode: 'IR',
+        source: 'gtr',
+        from: daily.from,
+        until: daily.until,
+        maxPoints: 20,
+      }),
+    );
+    expect(data.series).toEqual([daily]);
+    expect(data.notice).toBe(
+      'Coarse series aggregate underlying samples, so values need not equal an unweighted mean of finer returned buckets; a non-null aggregate cannot establish complete finer-resolution coverage. Request a narrower window with ioda_get_signals to inspect finer observations.',
+    );
+  });
+  it.each([
+    ['region', '1829'],
+    ['asn', '44244'],
+    ['geoasn', '60627-IR'],
+  ])(
+    'answers gtr for a %s with the countries-only notice and no verify-code advice',
+    async (entityType, entityCode) => {
+      network(() => envelope([[]]));
+      const data = parity(
+        await runToolContract(getSignals, { ...window, entityType, entityCode, source: 'gtr' }),
+      );
+      expect(data.series).toEqual([]);
+      expect(data.notice).toBe(countriesOnly);
+      expect(calls).toHaveLength(1);
+      expect(calls[0]?.pathname).toBe(`/v2/signals/raw/${entityType}/${entityCode}`);
+      expect(calls[0]?.searchParams.get('datasource')).toBe('gtr');
+    },
+  );
+  it('fails an unknown country on gtr as entity_not_found, as for the core sources', async () => {
+    network(() =>
+      Response.json(
+        { error: 'cannot find corresponding metadata entity 0', data: null },
+        { status: 400 },
+      ),
+    );
+    const result = await runToolContract(getSignals, {
+      ...window,
+      entityType: 'country',
+      entityCode: 'ZZ',
+      source: 'gtr',
+    });
+    failure(result, JsonRpcErrorCode.NotFound, 'entity_not_found');
+    expect(calls).toHaveLength(1);
+  });
+  it('advertises gtr on ioda_get_signals while ioda_get_status keeps the three core sources', () => {
+    type Fields = Record<string, { enum?: string[]; description?: string }>;
+    const signals = z.toJSONSchema(getSignals.output).properties as Record<
+      string,
+      { properties: Fields }
+    >;
+    expect(signals.semantics?.properties.source?.enum).toEqual(Object.keys(signalUnits));
+    expect(signals.semantics?.properties.unit?.enum).toEqual(Object.values(signalUnits));
+    const status = z.toJSONSchema(getStatus.output).properties as Record<
+      string,
+      { items: { properties: Fields } }
+    >;
+    expect(status.signals?.items.properties.source?.enum).toEqual(Object.keys(units));
+    expect(status.signals?.items.properties.unit?.enum).toEqual(Object.values(units));
+    const input = z.toJSONSchema(getSignals.input).properties as Fields;
+    expect(input.source?.description).toBe(
+      'Exactly bgp, ping-slash24, merit-nt, or gtr; case and whitespace normalized. gtr (Google Transparency Report traffic) covers countries only; ucsd-nt is not supported.',
+    );
+  });
+});
+
+describe('empty signal series', () => {
+  const missingData = 'Missing data does not establish healthy connectivity.';
+  const placeholder =
+    'A returned ioda_search_entities row does not confirm IODA holds data for an ASN: IODA answers an ASN it has no record of with a placeholder row whose attrs.ip_count is "0".';
+  const generic = `No observations were returned. Call ioda_search_entities to verify the code, or ioda_get_signals with another core source or an earlier window. ${missingData}`;
+  /** Each core source's first served UTC day, measured 2026-11-01. */
+  const starts = [
+    ['merit-nt', 1641686400, '2022-01-09'],
+    ['bgp', 1642464000, '2022-01-18'],
+    ['ping-slash24', 1643760000, '2022-02-02'],
+  ] as const;
+  const endsByStart = (source: string, day: string) =>
+    `IODA's API holds no ${source} observations before ${day} UTC, and this window ends by then, so an earlier window or another entity code returns none either. ${missingData}`;
+  const fromStart = (source: string, day: string) =>
+    `IODA's API holds no ${source} observations before ${day} UTC, so only the part of this window from then on can return any.`;
+  const empty = async (input: Record<string, unknown>) => {
+    network(() => envelope([[]]));
+    const data = parity(await runToolContract(getSignals, input as never));
+    expect(data.series).toEqual([]);
+    expect(calls).toHaveLength(1);
+    return data.notice;
+  };
+  const us = { entityType: 'country', entityCode: 'US' };
+  it.each(starts)(
+    'states the %s archive start alone for a window ending at it',
+    async (source, start, day) => {
+      const notice = await empty({ ...us, source, from: start - 86400, until: start });
+      expect(notice).toBe(endsByStart(source, day));
+    },
+  );
+  it("answers Iran's November 2019 bgp window with the archive start, not verify-code advice", async () => {
+    const notice = await empty({
+      entityType: 'country',
+      entityCode: 'IR',
+      source: 'bgp',
+      from: 1573689600,
+      until: 1574726400,
+    });
+    expect(notice).toBe(endsByStart('bgp', '2022-01-18'));
+  });
+  it.each(starts)(
+    'drops the earlier-window advice and adds the %s start for a straddling window',
+    async (source, start, day) => {
+      const notice = await empty({ ...us, source, from: start - 3600, until: start + 1 });
+      expect(notice).toBe(
+        `No observations were returned. Call ioda_search_entities to verify the code, or ioda_get_signals with another core source. ${missingData} ${fromStart(source, day)}`,
+      );
+    },
+  );
+  it.each(starts)(
+    'keeps the generic advice for a %s window from its start',
+    async (source, start) => {
+      expect(await empty({ ...us, source, from: start, until: start + 3600 })).toBe(generic);
+    },
+  );
+  describe('a window inside the publication allowance', () => {
+    const asOf = now / 1000;
+    const lag = (allowance: number, source: string) =>
+      `No observations were returned. This window starts at most ${allowance} seconds before the call, inside the publication allowance, so IODA may not have published any of its ${source} buckets yet. Call ioda_get_signals with a window ending at least ${allowance} seconds before the call. ${missingData}`;
+    it.each([
+      ['merit-nt', 7200, 10800],
+      ['merit-nt', 10800, 10800],
+      ['bgp', 1800, 1800],
+      ['ping-slash24', 600, 1800],
+      ['gtr', 10800, 10800],
+    ] as const)(
+      'explains an empty %s window starting %i s before the call by publication lag',
+      async (source, start, allowance) => {
+        expect(await empty({ ...us, source, from: asOf - start, until: asOf })).toBe(
+          lag(allowance, source),
+        );
+      },
+    );
+    it.each([
+      ['bgp', 1801],
+      ['merit-nt', 10801],
+    ] as const)(
+      'keeps the generic advice for an empty %s window starting %i s before the call',
+      async (source, start) => {
+        expect(await empty({ ...us, source, from: asOf - start, until: asOf })).toBe(generic);
+      },
+    );
+    it('names publication lag ahead of the ASN placeholder sign', async () => {
+      const asn = { entityType: 'asn', entityCode: '4199999999', source: 'bgp' };
+      expect(await empty({ ...asn, from: asOf - 600, until: asOf })).toBe(lag(1800, 'bgp'));
+    });
+    it('keeps the countries-only notice for gtr outside countries', async () => {
+      const region = { entityType: 'region', entityCode: '1829', source: 'gtr' };
+      expect(await empty({ ...region, from: asOf - 600, until: asOf })).toBe(
+        'IODA serves gtr for countries only. Call ioda_get_signals with source bgp, ping-slash24, or merit-nt for this entity, or with entityType country and a country code for gtr.',
+      );
+    });
+  });
+  it('gives gtr no archive start and routes a country to a core source', async () => {
+    const notice = await empty({
+      entityType: 'country',
+      entityCode: 'US',
+      source: 'gtr',
+      from: 1590969600,
+      until: 1591574400,
+    });
+    expect(notice).toBe(
+      `No observations were returned. Call ioda_search_entities to verify the code, or ioda_get_signals with a core source or an earlier window. ${missingData}`,
+    );
+  });
+  it('keeps the maxPoints clamp first ahead of the archive notice', async () => {
+    const notice = await empty({
+      entityType: 'country',
+      entityCode: 'US',
+      source: 'bgp',
+      from: 1642464000 - 86400,
+      until: 1642464000,
+      maxPoints: 10001,
+    });
+    expect(notice).toBe(
+      `maxPoints 10001 exceeds the cap of 10000; served 10000. Every maxPoints of 10000 or more requests the same aggregation. ${endsByStart('bgp', '2022-01-18')}`,
+    );
+  });
+  it('adds nothing to a returned series with leading pre-start nulls', async () => {
+    /** bgp for country IR straddling its start: nulls before 2022-01-18 02:15 UTC, then values. */
+    const series = {
+      entityType: 'country',
+      entityCode: 'IR',
+      datasource: 'bgp',
+      from: 1642471500,
+      until: 1642473000,
+      step: 300,
+      nativeStep: 300,
+      values: [null, null, 41672, 41675, 41668],
+    };
+    network(() => envelope([[series]]));
+    const data = parity(
+      await runToolContract(getSignals, {
+        entityType: 'country',
+        entityCode: 'IR',
+        source: 'bgp',
+        from: series.from,
+        until: series.until,
+      }),
+    );
+    expect(data.series).toEqual([series]);
+    expect(data.notice).toBeUndefined();
+  });
+  it('adds nothing to a returned series whose window straddles the bgp start', async () => {
+    /** Constructed: two leading nulls from 2022-01-17 23:55 UTC, across the 2022-01-18 constant. */
+    const series = {
+      entityType: 'country',
+      entityCode: 'IR',
+      datasource: 'bgp',
+      from: 1642463700,
+      until: 1642464900,
+      step: 300,
+      nativeStep: 300,
+      values: [null, null, 41672, 41675],
+    };
+    network(() => envelope([[series]]));
+    const data = parity(
+      await runToolContract(getSignals, {
+        entityType: 'country',
+        entityCode: 'IR',
+        source: 'bgp',
+        from: series.from,
+        until: series.until,
+      }),
+    );
+    expect(data.series).toEqual([series]);
+    expect(data.notice).toBeUndefined();
+  });
+  it('names the ASN placeholder sign instead of offering ioda_search_entities as verification', async () => {
+    const notice = await empty({
+      ...window,
+      entityType: 'asn',
+      entityCode: '4199999999',
+      source: 'bgp',
+    });
+    expect(notice).toBe(
+      `No observations were returned. ${placeholder} Call ioda_get_signals with another core source or an earlier window. ${missingData}`,
+    );
+    expect(notice).not.toMatch(/verify/);
+  });
+  it('drops the earlier-window advice for an ASN window straddling the start', async () => {
+    const notice = await empty({
+      entityType: 'asn',
+      entityCode: 'AS4199999999',
+      source: 'merit-nt',
+      from: 1641686400 - 3600,
+      until: 1641686400 + 3600,
+    });
+    expect(notice).toBe(
+      `No observations were returned. ${placeholder} Call ioda_get_signals with another core source. ${missingData} ${fromStart('merit-nt', '2022-01-09')}`,
+    );
+  });
+  it('lets the archive start win over the ASN notice for a window before it', async () => {
+    const notice = await empty({
+      entityType: 'asn',
+      entityCode: '4199999999',
+      source: 'ping-slash24',
+      from: 1643760000 - 86400,
+      until: 1643760000 - 1,
+    });
+    expect(notice).toBe(endsByStart('ping-slash24', '2022-02-02'));
+  });
+  it.each([
+    ['country', 'US'],
+    ['region', '1829'],
+    ['geoasn', '60627-IR'],
+  ])('keeps the generic advice for an empty %s series', async (entityType, entityCode) => {
+    expect(await empty({ ...window, entityType, entityCode, source: 'bgp' })).toBe(generic);
+  });
+  it('keeps the maxPoints clamp first ahead of the ASN notice', async () => {
+    const notice = await empty({
+      ...window,
+      entityType: 'asn',
+      entityCode: '4199999999',
+      source: 'bgp',
+      maxPoints: 10001,
+    });
+    expect(notice).toBe(
+      `maxPoints 10001 exceeds the cap of 10000; served 10000. Every maxPoints of 10000 or more requests the same aggregation. No observations were returned. ${placeholder} Call ioda_get_signals with another core source or an earlier window. ${missingData}`,
+    );
+  });
+});
+
+describe('status ASN placeholder notice', () => {
+  const placeholder =
+    'No event, alert, or series was returned. A returned ioda_search_entities row does not confirm IODA holds data for an ASN: IODA answers an ASN it has no record of with a placeholder row whose attrs.ip_count is "0".';
+  const asOf = now / 1000;
+  /** bgp for asn/403156, read live 2026-11-01: an ASN with a placeholder row and all-zero buckets. */
+  const zeros = {
+    entityType: 'asn',
+    entityCode: '403156',
+    entityName: 'AS403156',
+    entityFqid: 'asn.403156',
+    datasource: 'bgp',
+    subtype: '',
+    from: asOf - 3600,
+    until: asOf,
+    step: 300,
+    nativeStep: 300,
+    values: Array<number>(12).fill(0),
+  };
+  const critical = { ...alert, level: 'critical' };
+  type Rows = readonly unknown[];
+  /** Status with every component empty except the ones a route answers. */
+  const status = async (
+    input: Record<string, unknown>,
+    routes: { events?: Rows; alerts?: Rows; bgp?: Rows; failed?: string } = {},
+  ) => {
+    network((url) => {
+      const source = url.searchParams.get('datasource');
+      if (source && source === routes.failed) return new Response('', { status: 422 });
+      if (url.pathname.startsWith('/v2/signals/raw/'))
+        return envelope([source === 'bgp' ? (routes.bgp ?? []) : []]);
+      return envelope(
+        url.pathname.endsWith('/events') ? (routes.events ?? []) : (routes.alerts ?? []),
+      );
+    });
+    const pending = runToolContract(getStatus, input as never);
+    await vi.advanceTimersByTimeAsync(9000);
+    const data = parity(await pending);
+    expect(calls).toHaveLength(5);
+    return data;
+  };
+  it('names the placeholder sign for an ASN with no event, alert, or series, with no extra request', async () => {
+    const data = await status({ entityType: 'asn', entityCode: '4199999999' });
+    expect(data.detection).toBe('none_returned');
+    expect(data.notice).toBe(placeholder);
+  });
+  it.each([
+    ['a series of zeros', { bgp: [zeros] }],
+    ['an event', { events: [event] }],
+    ['an alert', { alerts: [critical] }],
+  ] as const)('omits it for an ASN that returns %s', async (_, routes) => {
+    const data = await status({ entityType: 'asn', entityCode: '403156' }, routes);
+    expect(data.notice).toBeUndefined();
+  });
+  it.each([
+    ['country', 'US'],
+    ['region', '1829'],
+    ['geoasn', '60627-IR'],
+  ])('omits it for an empty %s', async (entityType, entityCode) => {
+    expect((await status({ entityType, entityCode })).notice).toBeUndefined();
+  });
+  it('follows the lookback clamp and the incomplete-evidence notice', async () => {
+    const data = await status(
+      { entityType: 'asn', entityCode: '4199999999', lookbackHours: 25 },
+      { failed: 'merit-nt' },
+    );
+    expect(data.notice).toBe(
+      `lookbackHours 25 exceeds the cap of 24; served 24. For the uncovered earlier window, call ioda_find_outages, ioda_get_alerts, or ioda_get_signals (once per source) with the same entityType and entityCode, from ${asOf - 90000} and until ${asOf - 86400}. Evidence is incomplete. Follow each failed component recovery with its standalone tool; missing evidence does not establish healthy connectivity. ${placeholder}`,
+    );
+  });
+});
+
+describe('trailing null buckets', () => {
+  const asOf = now / 1000;
+  const coarse =
+    'Coarse series aggregate underlying samples, so values need not equal an unweighted mean of finer returned buckets; a non-null aggregate cannot establish complete finer-resolution coverage. Request a narrower window with ioda_get_signals to inspect finer observations.';
+  const unpublished = (allowance: number) =>
+    `Not yet ended and pending buckets (ended within the ${allowance}-second publication allowance before the call) are usually unpublished rather than missing observations.`;
+  const advice = (allowance: number, step = 300) =>
+    `To read published buckets, end the window at least ${allowance + step} seconds before the call (the allowance plus one ${step}-second bucket, because the last returned bucket can end after until).`;
+  const counted = (allowance: number, ...series: string[]) =>
+    `Trailing nulls after the last observation: ${series.join('; ')}. ${unpublished(allowance)}`;
+  const partial =
+    'The last non-null value of series[0] is a coarse bucket that has not ended or ended within the 1800-second allowance, so it can aggregate only the samples published so far.';
+  /** One country/US series whose last bucket ends `lastEnd` seconds after the invocation time. */
+  const ending = (
+    values: (number | null)[],
+    lastEnd: number,
+    { step = 300, nativeStep = step, datasource = 'bgp', subtype }: Record<string, unknown> = {},
+  ) => ({
+    entityType: 'country',
+    entityCode: 'US',
+    datasource,
+    ...(subtype !== undefined && { subtype }),
+    from: asOf + lastEnd - values.length * (step as number),
+    until: asOf + lastEnd,
+    step,
+    nativeStep,
+    values,
+  });
+  const notice = async (series: object[], input: Record<string, unknown> = {}) => {
+    network(() => envelope([series]));
+    const data = parity(
+      await runToolContract(getSignals, { ...window, ...entityInput, source: 'bgp', ...input }),
+    );
+    expect(data.series).toEqual(series);
+    expect(calls).toHaveLength(1);
+    return data.notice;
+  };
+  it('counts each class of a live merit-nt tail read at the call', async () => {
+    /**
+     * /signals/raw/country/IR?datasource=merit-nt over three hours, read live 2026-11-01 05:14:28
+     * UTC; the last seven of its 37 buckets, starting 1793508000.
+     */
+    const merit = {
+      entityType: 'country',
+      entityCode: 'IR',
+      entityName: 'Iran (Islamic Republic Of)',
+      entityFqid: 'geo.provider.AS.IR',
+      datasource: 'merit-nt',
+      subtype: '',
+      from: 1793508000,
+      until: 1793510100,
+      step: 300,
+      nativeStep: 300,
+      values: [74.6, 84.4, 80.2, 74.6, null, null, null],
+    };
+    vi.setSystemTime(1793510068000);
+    const result = await notice([merit], {
+      entityType: 'country',
+      entityCode: 'IR',
+      source: 'merit-nt',
+      from: 1793499266,
+      until: 1793510066,
+    });
+    expect(result).toBe(
+      `${counted(10800, 'series[0] has 1 not yet ended, 2 pending, and 0 missing')} ${advice(10800)}`,
+    );
+  });
+  it('classifies a live gtr tail against its own 10800-second allowance', async () => {
+    /** /signals/raw/country/IR?datasource=gtr, read live 2026-11-01 05:14:36 UTC. */
+    const gtr = {
+      entityType: 'country',
+      entityCode: 'IR',
+      entityName: 'Iran (Islamic Republic Of)',
+      entityFqid: 'geo.provider.AS.IR',
+      datasource: 'gtr',
+      subtype: 'WEB_SEARCH',
+      from: 1793498400,
+      until: 1793511000,
+      step: 1800,
+      nativeStep: 1800,
+      values: [238911239, 275725229, 358255906, 470225260, null, null, null],
+    };
+    vi.setSystemTime(1793510076000);
+    const result = await notice([gtr], {
+      entityType: 'country',
+      entityCode: 'IR',
+      source: 'gtr',
+      from: 1793499266,
+      until: 1793510066,
+    });
+    expect(result).toBe(
+      `${counted(10800, 'series[0] (subtype WEB_SEARCH) has 1 not yet ended, 2 pending, and 0 missing')} ${advice(10800, 1800)}`,
+    );
+  });
+  it.each([
+    ['a bucket ending after the call', [1, null], 100, '1 not yet ended, 0 pending'],
+    ['a bucket ending at the call', [1, null], 0, '0 not yet ended, 1 pending'],
+    ['a bucket ending 1800 s before the call', [1, null], -1800, '0 not yet ended, 1 pending'],
+    ['a tail after an interior null', [1, null, 2, null], 0, '0 not yet ended, 1 pending'],
+    ['an all-null tail', [null, null, null], 300, '1 not yet ended, 2 pending'],
+  ] as const)('classifies %s', async (_, values, lastEnd, counts) => {
+    expect(await notice([ending([...values], lastEnd)])).toBe(
+      `${counted(1800, `series[0] has ${counts}, and 0 missing`)} ${advice(1800)}`,
+    );
+  });
+  it('splits a tail at the allowance and counts the overdue buckets as missing', async () => {
+    expect(await notice([ending([1, null, null, null], -1500)])).toBe(
+      `${counted(1800, 'series[0] has 0 not yet ended, 2 pending, and 1 missing')} ${advice(1800)}`,
+    );
+  });
+  it.each([
+    ['a tail ending 1801 s before the call', [1, null], -1801, {}],
+    ['a native series ending non-null', [1, null, 2], 0, {}],
+    ['a gtr tail ending 10801 s before', [1, null], -10801, { step: 1800, datasource: 'gtr' }],
+    ['a merit-nt tail ending 10801 s before', [1, null], -10801, { datasource: 'merit-nt' }],
+  ] as const)('adds nothing for %s', async (_, values, lastEnd, options) => {
+    const source = 'datasource' in options ? options.datasource : 'bgp';
+    expect(await notice([ending([...values], lastEnd, options)], { source })).toBeUndefined();
+  });
+  it('keeps a gtr tail ending 10800 s before the call pending', async () => {
+    const series = ending([1, null], -10800, { step: 1800, datasource: 'gtr' });
+    expect(await notice([series], { source: 'gtr' })).toBe(
+      `${counted(10800, 'series[0] has 0 not yet ended, 1 pending, and 0 missing')} ${advice(10800, 1800)}`,
+    );
+  });
+  it('keeps a merit-nt tail ending 10800 s before the call pending, since merit-nt publishes in batches', async () => {
+    const series = ending([1, null], -10800, { datasource: 'merit-nt' });
+    expect(await notice([series], { source: 'merit-nt' })).toBe(
+      `${counted(10800, 'series[0] has 0 not yet ended, 1 pending, and 0 missing')} ${advice(10800)}`,
+    );
+  });
+  it('lists every subtype with a tail once one is unpublished, and skips one ending non-null', async () => {
+    const series = [
+      ending([1, null], 0, { subtype: 'a' }),
+      ending([1, null, null], -3600, { subtype: 'b' }),
+      ending([1, 2], 0, { subtype: 'c' }),
+    ];
+    expect(await notice(series)).toBe(
+      `${counted(1800, 'series[0] (subtype a) has 0 not yet ended, 1 pending, and 0 missing', 'series[1] (subtype b) has 0 not yet ended, 0 pending, and 2 missing')} ${advice(1800)}`,
+    );
+  });
+  it('names a live coarse last bucket that is still open as possibly partial', async () => {
+    /** bgp for country/IR at maxPoints 6 over one day, read live 2026-11-01 05:27:50 UTC. */
+    const daily = {
+      entityType: 'country',
+      entityCode: 'IR',
+      entityName: 'Iran (Islamic Republic Of)',
+      entityFqid: 'geo.provider.AS.IR',
+      datasource: 'bgp',
+      subtype: '',
+      from: 1793404800,
+      until: 1793512800,
+      step: 21600,
+      nativeStep: 300,
+      values: [
+        41672.333333333336, 41674.72222222222, 41668.333333333336, 41661.305555555555,
+        41647.82258064516,
+      ],
+    };
+    vi.setSystemTime(1793510870000);
+    const result = await notice([daily], {
+      entityType: 'country',
+      entityCode: 'IR',
+      from: 1793424469,
+      until: 1793510869,
+      maxPoints: 6,
+    });
+    expect(result).toBe(`${coarse} ${partial} ${advice(1800, 21600)}`);
+  });
+  it.each([
+    [-1800, true],
+    [-1801, false],
+  ])(
+    'treats a coarse last bucket ending %i s from the call as partial: %s',
+    async (lastEnd, open) => {
+      const series = ending([5, 6], lastEnd, { step: 1800, nativeStep: 300 });
+      expect(await notice([series])).toBe(
+        open ? `${coarse} ${partial} ${advice(1800, 1800)}` : coarse,
+      );
+    },
+  );
+  it('names a coarse gtr last bucket within its 10800-second allowance as possibly partial', async () => {
+    const series = ending([5, 6], -5000, { step: 3600, nativeStep: 1800, datasource: 'gtr' });
+    expect(await notice([series], { source: 'gtr' })).toBe(
+      `${coarse} The last non-null value of series[0] is a coarse bucket that has not ended or ended within the 10800-second allowance, so it can aggregate only the samples published so far. ${advice(10800, 3600)}`,
+    );
+  });
+  it('counts a coarse tail and names the last non-null coarse bucket before it', async () => {
+    const series = ending([5, null], 600, { step: 1800, nativeStep: 300 });
+    expect(await notice([series])).toBe(
+      `${coarse} ${counted(1800, 'series[0] has 1 not yet ended, 0 pending, and 0 missing')} ${partial} ${advice(1800, 1800)}`,
+    );
+  });
+  it('counts a bucket aligned past an until 1800 s before the call as pending', async () => {
+    /** The returned bounds extend past until: the last bucket ends 1559 s before the call. */
+    expect(await notice([ending([1, null], -1559)], { until: asOf - 1800 })).toBe(
+      `${counted(1800, 'series[0] has 0 not yet ended, 1 pending, and 0 missing')} ${advice(1800)}`,
+    );
+  });
+  it('adds nothing once the window ends the advised allowance plus one step before the call', async () => {
+    expect(await notice([ending([1, null], -2100)], { until: asOf - 2100 })).toBeUndefined();
+  });
+  it('adds no output field: the notice alone carries the classification', () => {
+    expect(Object.keys(getSignals.output.shape)).toEqual(['series', 'semantics', 'provenance']);
+  });
+  it('advertises both allowances where the description explains nulls', () => {
+    expect(getSignals.description).toContain(
+      'trailing nulls in buckets not yet ended or ended within the publication allowance before the call (1800 seconds for bgp and ping-slash24, 10800 for merit-nt and gtr) are usually unpublished, and every other null is a missing observation',
+    );
+  });
+  it('keeps the maxPoints clamp first ahead of the trailing-null notice', async () => {
+    expect(await notice([ending([1, null], 0)], { maxPoints: 10001 })).toBe(
+      `maxPoints 10001 exceeds the cap of 10000; served 10000. Every maxPoints of 10000 or more requests the same aggregation. ${counted(1800, 'series[0] has 0 not yet ended, 1 pending, and 0 missing')} ${advice(1800)}`,
     );
   });
 });
@@ -1908,6 +3121,511 @@ describe('unknown entity codes', () => {
       );
     }
     expect(calls).toHaveLength(3);
+  });
+});
+
+describe('literal query substrings', () => {
+  /** Captured /entities/query country rows and asn rows for search=Telegram\_Messenger. */
+  const corpus: Record<string, { name: string; [field: string]: unknown }[]> = {
+    country: [
+      ['AS', 'American Samoa', 'OC'],
+      ['AZ', 'Azerbaijan', 'AS'],
+      ['DE', 'Germany', 'EU'],
+      ['IR', 'Iran (Islamic Republic Of)', 'AS'],
+      ['US', 'United States', 'NA'],
+    ].map(([code = '', name = '', continent = '']) => ({
+      code,
+      name,
+      type: 'country',
+      subnames: [],
+      attrs: { fqid: `geo.netacuity.${continent}.${code}` },
+    })),
+    asn: [
+      {
+        code: '44907',
+        name: 'AS44907 (Telegram_Messenger_CDN)',
+        type: 'asn',
+        subnames: [],
+        attrs: {
+          ip_count: '1024',
+          fqid: 'asn.44907',
+          name: 'Telegram_Messenger_CDN',
+          org: 'Telegram Messenger Inc',
+        },
+      },
+      {
+        code: '59930',
+        name: 'AS59930 (Telegram_Messenger)',
+        type: 'asn',
+        subnames: [],
+        attrs: {
+          fqid: 'asn.59930',
+          ip_count: '2048',
+          name: 'Telegram_Messenger',
+          org: 'Telegram Messenger Inc',
+        },
+      },
+    ],
+  };
+  /** IODA's `name ILIKE '%' || search || '%'`; PostgreSQL LIKE escapes the next character with a backslash. */
+  function ilike(name: string, search: string): boolean {
+    let pattern = '';
+    for (let index = 0; index < search.length; index++) {
+      const char = search[index] ?? '';
+      if (char === '%') pattern += '[\\s\\S]*';
+      else if (char === '_') pattern += '[\\s\\S]';
+      else
+        pattern += (char === '\\' ? (search[++index] ?? '') : char).replace(
+          /[$()*+.?[\\\]^{|}]/g,
+          '\\$&',
+        );
+    }
+    return new RegExp(pattern, 'i').test(name);
+  }
+  function upstream(url: URL) {
+    const search = url.searchParams.get('search');
+    const rows = corpus[url.searchParams.get('entityType') ?? ''] ?? [];
+    return envelope(search === null ? rows : rows.filter((row) => ilike(row.name, search)));
+  }
+  const zeroHit =
+    'No matching entities. Call ioda_search_entities with a shorter query or omit query to list this entity type.';
+
+  it('describes query as a literal case-insensitive substring', () => {
+    expect(searchEntities.input.shape.query.description).toMatch(
+      /^Case-insensitive name substring, matched literally \(% and _ are not wildcards\);/,
+    );
+  });
+  it.each([
+    ['%', '\\%'],
+    ['_', '\\_'],
+    ['i_an', 'i\\_an'],
+    ['ir\\an', 'ir\\\\an'],
+  ])('matches country query %j literally: sends %j and returns no rows', async (query, search) => {
+    network(upstream);
+    const data = parity(await runToolContract(searchEntities, { entityType: 'country', query }));
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.searchParams.get('search')).toBe(search);
+    expect(data.entities).toEqual([]);
+    expect(data.notice).toBe(zeroHit);
+    expect(data.applied).toEqual({ entityType: 'country', query, limit: 20, page: 0 });
+  });
+  it.each([
+    ['asn', ' Telegram_Messenger ', 'Telegram\\_Messenger', ['44907', '59930']],
+    ['country', 'iran', 'iran', ['IR']],
+  ])(
+    'matches %s query %j as the literal substring %j',
+    async (entityType, query, search, codes) => {
+      network(upstream);
+      const data = parity(await runToolContract(searchEntities, { entityType, query }));
+      expect(calls[0]?.searchParams.get('search')).toBe(search);
+      expect((data.entities as { code: string }[]).map((row) => row.code)).toEqual(codes);
+      expect(data.notice).toBeUndefined();
+      expect(data.applied).toEqual({ entityType, query: query.trim(), limit: 20, page: 0 });
+    },
+  );
+});
+
+describe('placeholder regions', () => {
+  const iran = ['AS', 'IR', 'Iran (Islamic Republic Of)'] as const;
+  const congo = ['AF', 'CD', 'Democratic Republic Of The Congo'] as const;
+  function region(
+    [continent, country_code, country_name]: readonly [string, string, string],
+    code: string,
+    name: string,
+    neRegionId?: string,
+  ) {
+    return {
+      code,
+      name,
+      type: 'region',
+      subnames: [],
+      attrs: {
+        fqid: `geo.netacuity.${continent}.${country_code}.${code}`,
+        country_code,
+        country_name,
+        ...(neRegionId && { ne_region_id: neRegionId }),
+      },
+    };
+  }
+  /** Captured /entities/query?entityType=region&relatedTo=country/IR rows: 4 of 33, in IODA's order. */
+  const iranRegions = [
+    region(iran, '1821', '[Invalid Region (1821)]'),
+    region(iran, '1823', 'Bushehr', '3210'),
+    region(iran, '1829', 'Tehran', '3216'),
+    region(iran, '4800', 'Unknown Region in Iran (Islamic Republic Of)'),
+  ];
+  const sudKivu = region(congo, '694', 'Sud-Kivu', '1894');
+  const congoUnknown = region(congo, '4680', 'Unknown Region in Democratic Republic Of The Congo');
+  const congoEvent = (entity: typeof sudKivu, from: number, until: number, score: number) => ({
+    entity,
+    from,
+    until,
+    score,
+    datasource: 'bgp',
+    method: 'median',
+  });
+  /** Captured /outages/events?entityType=region&relatedTo=country/CD rows, the first four. */
+  const congoEvents = [
+    congoEvent(sudKivu, 1792920600, 1792921500, 53.57142857142857),
+    congoEvent(congoUnknown, 1792930500, 1792931400, 26.94610778443114),
+    congoEvent(sudKivu, 1792940100, 1792992900, 3142.8571428571427),
+    congoEvent(congoUnknown, 1792949400, 1792954500, 101.79640718562875),
+  ];
+  const congoAlert = (
+    entity: typeof sudKivu,
+    time: number,
+    level: string,
+    condition: string,
+    value: number,
+    historyValue: number,
+  ) => ({
+    datasource: 'bgp',
+    entity,
+    time,
+    level,
+    condition,
+    value,
+    historyValue,
+    method: 'median',
+  });
+  /** Captured /outages/alerts?entityType=region&relatedTo=country/CD rows, the first four. */
+  const congoAlerts = [
+    congoAlert(sudKivu, 1792920600, 'critical', '< 0.99', 27, 28),
+    congoAlert(sudKivu, 1792921500, 'normal', 'normal', 28, 28),
+    congoAlert(congoUnknown, 1792930500, 'critical', '< 0.99', 164, 167),
+    congoAlert(congoUnknown, 1792931400, 'normal', 'normal', 167, 167),
+  ];
+  /** Captured /outages/summary?entityType=region&relatedTo=country/CD rows: the whole page. */
+  const congoSummaries = [
+    {
+      entity: sudKivu,
+      scores: { overall: 24926.071428571428, 'bgp.median': 24926.071428571428 },
+      event_cnt: 9,
+    },
+    {
+      entity: congoUnknown,
+      scores: { overall: 3062.0359281437127, 'bgp.median': 3062.0359281437127 },
+      event_cnt: 15,
+    },
+  ];
+  const iranCatchAlls =
+    'Regions 1821, 4800 are IODA geolocation catch-alls rather than provinces or states; do not report them as such.';
+  const congoCatchAll =
+    'Region 4680 is an IODA geolocation catch-all rather than a province or state; do not report it as one.';
+
+  it.each([
+    ['[Invalid Region (1821)]', 'region', true],
+    ['Unknown Region in Iran (Islamic Republic Of)', 'region', true],
+    ['Unknown Region in Unknown Country', 'region', true],
+    ['Tehran', 'region', false],
+    ['Vientiane [prefecture]', 'region', false],
+    ['[Invalid Region (1821)] ', 'region', false],
+    ['[Invalid Region (1821)]\n', 'region', false],
+    ['[Invalid Region ()]', 'region', false],
+    ['[Invalid Region (18a)]', 'region', false],
+    ['x [Invalid Region (1821)]', 'region', false],
+    ['unknown region in Iran (Islamic Republic Of)', 'region', false],
+    ['Unknown Region', 'region', false],
+    ['Unknown Region in Iran (Islamic Republic Of)', 'country', false],
+    ['[Invalid Region (1821)]', 'geoasn', false],
+    ['Unknown Region in Iran (Islamic Republic Of)', null, false],
+  ] as const)('classifies name %j on a %s row as a placeholder: %s', (name, type, placeholder) => {
+    expect(isPlaceholderRegion({ code: '1821', name, type })).toBe(placeholder);
+  });
+  it('says in the resolver and ranking descriptions that region results can include them', () => {
+    for (const definition of [searchEntities, summarizeOutages])
+      expect(definition.description).toMatch(
+        /can include IODA geolocation catch-alls named \[Invalid Region \(N\)\] or Unknown Region in <country>, which are not provinces or states; a notice names them\./,
+      );
+  });
+  it('names each placeholder code once in page order, and nothing for a page without one', () => {
+    expect(placeholderRegionNotice([sudKivu, congoUnknown, sudKivu, congoUnknown])).toBe(
+      congoCatchAll,
+    );
+    expect(placeholderRegionNotice([...iranRegions].reverse())).toBe(
+      'Regions 4800, 1821 are IODA geolocation catch-alls rather than provinces or states; do not report them as such.',
+    );
+    expect(placeholderRegionNotice([sudKivu, ...iranRegions.slice(1, 3)])).toBeUndefined();
+    expect(placeholderRegionNotice([])).toBeUndefined();
+  });
+  it("names 1821 and 4800 in Iran's region listing, not Tehran, with the rows unchanged", async () => {
+    network(() => envelope(iranRegions));
+    const data = parity(
+      await runToolContract(searchEntities, {
+        entityType: 'region',
+        relatedToType: 'country',
+        relatedToCode: 'IR',
+        limit: 100,
+      }),
+    );
+    expect(data.entities).toEqual(iranRegions);
+    expect(data.notice).toBe(iranCatchAlls);
+    expect(data.notice).not.toContain('1829');
+  });
+  it("names 4680 once in DR Congo's region ranking, events, and alerts after the membership notice", async () => {
+    const scope = {
+      ...window,
+      entityType: 'region',
+      relatedToType: 'country',
+      relatedToCode: 'CD',
+    };
+    for (const [rows, key, run] of [
+      [congoSummaries, 'summaries', () => runToolContract(summarizeOutages, scope)],
+      [congoEvents, 'events', () => runToolContract(findOutages, scope)],
+      [congoAlerts, 'alerts', () => runToolContract(getAlerts, scope)],
+    ] as const) {
+      network(() => envelope(rows));
+      const data = parity(await run());
+      expect(data[key]).toEqual(rows);
+      expect(data.notice).toMatch(/^Membership coverage is unverified:/);
+      expect(rowGuidance(data.notice)).toBe(congoCatchAll);
+    }
+    expect(calls).toHaveLength(3);
+  });
+  it('keeps a limit clamp first and the continuation last around the placeholder notice', async () => {
+    network(() => envelope(congoSummaries));
+    const data = parity(
+      await runToolContract(summarizeOutages, { ...window, entityType: 'region', limit: 2000 }),
+    );
+    expect(data.notice).toBe(
+      `limit 2000 exceeds the cap of 1000; served 1000. Every limit of 1000 or more serves the same pages. ${congoCatchAll}`,
+    );
+    network(() => envelope(congoEvents));
+    const events = parity(
+      await runToolContract(findOutages, { ...window, entityType: 'region', limit: 4 }),
+    );
+    expect(events.notice).toBe(
+      `${congoCatchAll} Another page may exist. Keep filters and limit fixed and use nextPage; restart at page 0 if changing limit.`,
+    );
+  });
+});
+
+describe('placeholder ASN rows', () => {
+  /** Captured /entities/query?entityType=asn&entityCode=<code> rows. */
+  const asnRow = (code: string, ipCount: string) => ({
+    code,
+    name: `AS${code}`,
+    type: 'asn',
+    subnames: [],
+    attrs: { fqid: `asn.${code}`, ip_count: ipCount },
+  });
+  const placeholder = (code: string) =>
+    `ASN ${code} came back as IODA's placeholder row (attrs.ip_count "0"), which IODA returns for an ASN it holds no record of, so the row neither confirms the ASN nor shows whether IODA measures it. Call ioda_get_signals with entityType asn, entityCode ${code}, a source, and a window to check for observations.`;
+
+  it.each([
+    ['4199999999', asnRow('4199999999', '0'), placeholder('4199999999')],
+    ['403156', asnRow('403156', '0'), placeholder('403156')],
+    ['64512', asnRow('64512', '1024'), undefined],
+  ])('answers an asn entityCode %s lookup by its ip_count', async (code, row, notice) => {
+    network(() => envelope([row]));
+    const data = parity(
+      await runToolContract(searchEntities, { entityType: 'asn', entityCode: `AS${code}` }),
+    );
+    expect(calls[0]?.searchParams.get('entityCode')).toBe(code);
+    expect(data.entities).toEqual([row]);
+    expect(data.notice).toBe(notice);
+  });
+  it('matches ip_count "0" on asn rows only and names each one', async () => {
+    const geoasn = {
+      code: '40934-576',
+      name: 'AS40934 -- British Columbia',
+      type: 'geoasn',
+      subnames: { asn: 'AS40934', region: 'British Columbia' },
+      attrs: { fqid: 'geoasn.40934-576', ip_count: '0' },
+    };
+    network(() => envelope([geoasn]));
+    expect(parity(await runToolContract(searchEntities, { entityType: 'geoasn' })).notice).toBe(
+      undefined,
+    );
+    network(() =>
+      envelope([asnRow('4199999999', '0'), asnRow('64512', '1024'), asnRow('3876543210', '0')]),
+    );
+    expect(parity(await runToolContract(searchEntities, { entityType: 'asn' })).notice).toBe(
+      `${placeholder('4199999999')} ${placeholder('3876543210')}`,
+    );
+  });
+});
+
+describe('empty windows against the detection archive start', () => {
+  /** 2019-11-14 to 2019-11-26 UTC, Iran's November 2019 shutdown; IODA answers [] for each endpoint. */
+  const shutdown = { from: 1573689600, until: 1574726400 };
+  /** 2022-01-25 to 2022-01-27 UTC, across the 2022-01-26 detection start. */
+  const straddling = { from: 1643068800, until: 1643241600 };
+  /** 2022-01-15 to 2022-01-20 UTC: before the start, but within 14 days of it. */
+  const nearStart = { from: 1642204800, until: 1642636800 };
+  const before =
+    "IODA's API holds no outage detections (alerts, events, or summary rows) before 2022-01-26 UTC, and this window ends by then, so an earlier window or another entity code returns none either.";
+  const straddles =
+    "IODA's API holds no outage detections (alerts, events, or summary rows) before 2022-01-26 UTC, so only the part of this window from then on can return any.";
+  const verify =
+    'IODA returns an empty page rather than an error for an unknown entityCode; call ioda_search_entities with the same entityType and entityCode to verify it.';
+  const eventsZeroHit =
+    'No detected events were returned for this scope and window. Call ioda_get_signals for measurement coverage, or ioda_find_outages with a wider window or fewer filters. This is not an all-clear.';
+  const summaryZeroHit =
+    'No outage summaries were returned for this scope and window. Call ioda_find_outages for detected events or ioda_get_signals for measurement coverage, or ioda_summarize_outages with a wider window or fewer filters. This is not an all-clear.';
+  const alertsZeroHit =
+    'No alert transitions were returned. An event may have started earlier. Call ioda_find_outages over this window for overlapping events, or ioda_get_signals for observations.';
+  const iran = { entityType: 'country', entityCode: 'IR' };
+  const irRegions = { entityType: 'region', relatedToType: 'country', relatedToCode: 'IR' };
+
+  it.each([
+    [
+      'ioda_find_outages for one entity',
+      () => runToolContract(findOutages, { ...shutdown, ...iran }),
+      `${before} This is not an all-clear.`,
+    ],
+    [
+      'ioda_find_outages in global scope',
+      () => runToolContract(findOutages, shutdown),
+      `extendWindowSeconds defaulted to 86400 (one day) for global scope, so events that began more than a day before from can be missing. Add entityType for the 14-day default, or pass extendWindowSeconds explicitly; large global extensions can time out. ${before} This is not an all-clear.`,
+    ],
+    [
+      'ioda_summarize_outages for one entity',
+      () => runToolContract(summarizeOutages, { ...shutdown, ...iran }),
+      before,
+    ],
+    [
+      'ioda_summarize_outages with a clamped limit',
+      () => runToolContract(summarizeOutages, { ...shutdown, entityType: 'country', limit: 2000 }),
+      `limit 2000 exceeds the cap of 1000; served 1000. Every limit of 1000 or more serves the same pages. ${before}`,
+    ],
+    [
+      'ioda_get_alerts for one entity',
+      () => runToolContract(getAlerts, { ...shutdown, ...iran }),
+      before,
+    ],
+    [
+      'ioda_get_alerts with an extension that stays before the start',
+      () =>
+        runToolContract(getAlerts, {
+          ...nearStart,
+          entityType: 'country',
+          extendWindowSeconds: 43200,
+        }),
+      before,
+    ],
+    [
+      'ioda_get_alerts with a clamped extension, keyed on the served 1209600 rather than the requested 2000000',
+      () =>
+        runToolContract(getAlerts, {
+          from: 1641686400,
+          until: 1641772800,
+          entityType: 'country',
+          extendWindowSeconds: 2000000,
+        }),
+      `extendWindowSeconds 2000000 exceeds the cap of 1209600; served 1209600. Transitions more than 1209600 seconds before from or after until are not returned. To reach the earlier ones, call ioda_get_alerts at page 0 with from 1640896000, until 1641772800, extendWindowSeconds 1209600, and the other filters unchanged; for the later ones, use from 1641686400 and until 1642563200 instead. ${before}`,
+    ],
+  ])('answers an empty first page from %s with the archive start alone', async (_, run, notice) => {
+    network(() => envelope([]));
+    const data = parity(await run());
+    expect(data.notice).toBe(notice);
+    expect(calls).toHaveLength(1);
+  });
+  it('keeps the membership notice and drops the verify-scope clause for a scoped window before the start', async () => {
+    for (const [run, notice] of [
+      [
+        () => runToolContract(findOutages, { ...shutdown, ...irRegions }),
+        `${before} This is not an all-clear.`,
+      ],
+      [() => runToolContract(summarizeOutages, { ...shutdown, ...irRegions }), before],
+      [() => runToolContract(getAlerts, { ...shutdown, ...irRegions }), before],
+    ] as const) {
+      network(() => envelope([]));
+      const data = parity(await run());
+      expect(data.notice).toMatch(/^Membership coverage is unverified:/);
+      expect(rowGuidance(data.notice)).toBe(notice);
+    }
+    expect(calls).toHaveLength(3);
+  });
+  it.each([
+    [
+      'ioda_find_outages',
+      () => runToolContract(findOutages, { ...straddling, ...iran }),
+      `${eventsZeroHit} ${verify} ${straddles}`,
+    ],
+    [
+      'ioda_summarize_outages',
+      () => runToolContract(summarizeOutages, { ...straddling, entityType: 'country' }),
+      `${summaryZeroHit} ${straddles}`,
+    ],
+    [
+      'ioda_get_alerts',
+      () => runToolContract(getAlerts, { ...straddling, ...iran }),
+      `${alertsZeroHit} ${verify} ${straddles}`,
+    ],
+    [
+      'ioda_get_alerts whose extension reaches past the start',
+      () =>
+        runToolContract(getAlerts, {
+          ...nearStart,
+          entityType: 'country',
+          extendWindowSeconds: 1209600,
+        }),
+      `${alertsZeroHit} ${straddles}`,
+    ],
+  ])(
+    'keeps the usual guidance and adds the archive sentence for %s across the start',
+    async (_, run, notice) => {
+      network(() => envelope([]));
+      expect(parity(await run()).notice).toBe(notice);
+    },
+  );
+  it('keys events and rankings on the window alone, so a 14-day extension does not cross the start', async () => {
+    for (const run of [
+      () => runToolContract(findOutages, { ...nearStart, entityType: 'country' }),
+      () => runToolContract(summarizeOutages, { ...nearStart, entityType: 'country' }),
+    ]) {
+      network(() => envelope([]));
+      const data = parity(await run());
+      expect(data.applied).toMatchObject({ extendWindowSeconds: 1209600 });
+      expect(data.notice).toMatch(new RegExp(`^${before.replace(/[.()]/g, '\\$&')}`));
+    }
+  });
+  it('leaves later pages, non-empty pages, and windows from the start on unchanged', async () => {
+    for (const [tool, run] of [
+      ['ioda_find_outages', () => runToolContract(findOutages, { ...shutdown, ...iran, page: 1 })],
+      [
+        'ioda_summarize_outages',
+        () => runToolContract(summarizeOutages, { ...shutdown, ...iran, page: 1 }),
+      ],
+      ['ioda_get_alerts', () => runToolContract(getAlerts, { ...shutdown, ...iran, page: 1 })],
+    ] as const) {
+      network(() => envelope([]));
+      expect(parity(await run()).notice).toBe(
+        `This page is empty. Call ${tool} with page 0 and unchanged filters, or return to the previous page.`,
+      );
+    }
+    network(() => envelope([event]));
+    expect(
+      parity(await runToolContract(findOutages, { ...shutdown, ...iran })).notice,
+    ).toBeUndefined();
+    network(() => envelope([]));
+    expect(
+      parity(
+        await runToolContract(summarizeOutages, {
+          from: 1643155200,
+          until: 1643241600,
+          entityType: 'country',
+        }),
+      ).notice,
+    ).toBe(summaryZeroHit);
+  });
+  it('states the archive starts in the shared from descriptions', () => {
+    for (const definition of [findOutages, summarizeOutages, getAlerts])
+      expect(definition.input.shape.from.description).toBe(
+        "Inclusive Unix seconds UTC; no milliseconds; window at most 31 days. IODA's API holds no outage detections before 2022-01-26 UTC.",
+      );
+    expect(getSignals.input.shape.from.description).toBe(
+      "Requested start Unix seconds UTC; window at most 31 days. Aligned returned buckets may begin earlier. IODA's API holds no merit-nt observations before 2022-01-09 UTC, no bgp before 2022-01-18, and no ping-slash24 before 2022-02-02.",
+    );
+  });
+});
+
+describe('re-based recovery baselines', () => {
+  it("tells alert readers to judge a recovery against the detection's baseline", () => {
+    expect(getAlerts.description).toContain(
+      "levels and baselines are not a source-independent severity scale. A recovery's historyValue can be a baseline IODA re-based during a long event; compare its value with the detection's historyValue and condition. Transitions include",
+    );
   });
 });
 
@@ -2337,7 +4055,6 @@ describe('relatedTo scope', () => {
     method: 'median',
   });
   const iranAlerts = [iranAlert('1825', 'Fars', 350, 6327), iranAlert('1829', 'Tehran', 115, 1985)];
-  const query = (url: URL | undefined) => Object.fromEntries(url?.searchParams ?? []);
 
   it.each([
     [{}, undefined],
@@ -2412,6 +4129,9 @@ describe('relatedTo scope', () => {
       page: 0,
       scope: 'related',
     });
+    expect(data.notice).toBe(
+      'Region 1821 is an IODA geolocation catch-all rather than a province or state; do not report it as one.',
+    );
 
     calls.length = 0;
     network(() => envelope(iranNetworks));
@@ -2432,6 +4152,7 @@ describe('relatedTo scope', () => {
     });
     expect(data.entities).toEqual(iranNetworks);
     expect(data.applied).toMatchObject({ query: 'Iran', scope: 'related' });
+    expect(data.notice).toBeUndefined();
   });
   it('continues scoped events with nextPage', async () => {
     const pages = (url: URL) =>
@@ -2575,10 +4296,6 @@ describe('relatedTo scope', () => {
 });
 
 describe('outage summary ranking', () => {
-  const query = (url: URL | undefined) => Object.fromEntries(url?.searchParams ?? []);
-  const seconds = { from: String(window.from), until: String(window.until) };
-  const nextPage =
-    'Another page may exist. Keep filters and limit fixed and use nextPage; restart at page 0 if changing limit.';
   const zeroHit =
     'No outage summaries were returned for this scope and window. Call ioda_find_outages for detected events or ioda_get_signals for measurement coverage, or ioda_summarize_outages with a wider window or fewer filters. This is not an all-clear.';
   const pastEnd =
@@ -2740,15 +4457,12 @@ describe('outage summary ranking', () => {
       'upstream_queue_full',
       'upstream_timeout',
       'upstream_schema',
-      'response_too_large',
     ]);
     const upstream = entries.filter((entry) => entry.reason.startsWith('upstream_'));
     expect(upstream).toHaveLength(6);
     for (const entry of [
       ...upstream,
-      ...entries.filter((entry) =>
-        ['entity_not_found', 'response_too_large'].includes(entry.reason),
-      ),
+      ...entries.filter((entry) => entry.reason === 'entity_not_found'),
     ])
       expect(entry.recovery).toBe(
         recoveryFor(entry.reason as Parameters<typeof recoveryFor>[0], 'ioda_summarize_outages'),
@@ -2965,17 +4679,17 @@ describe('outage summary ranking', () => {
     });
     expect(data.applied).toMatchObject({ extendWindowSeconds: 0 });
   });
-  it('serves limit 100 and a 1209600 extension unchanged, and over-cap values at the caps with notices', async () => {
+  it('serves limit 1000 and a 1209600 extension unchanged, and over-cap values at the caps with notices', async () => {
     network(() => envelope([]));
     let data = parity(
       await runToolContract(summarizeOutages, {
         ...window,
         entityType: 'region',
-        limit: 100,
+        limit: 1000,
         extendWindowSeconds: 1209600,
       }),
     );
-    expect(query(calls[0])).toMatchObject({ limit: '100', extendWindow: '1209600' });
+    expect(query(calls[0])).toMatchObject({ limit: '1000', extendWindow: '1209600' });
     expect(data.notice).toBe(zeroHit);
 
     network(() => envelope([]));
@@ -2983,26 +4697,21 @@ describe('outage summary ranking', () => {
       await runToolContract(summarizeOutages, {
         ...window,
         entityType: 'region',
-        limit: 1000,
+        limit: 1001,
         extendWindowSeconds: 12096000,
         page: 2,
       }),
     );
-    expect(query(calls[1])).toMatchObject({ limit: '100', extendWindow: '1209600', page: '2' });
-    expect(data.applied).toMatchObject({ limit: 100, extendWindowSeconds: 1209600, page: 2 });
+    expect(query(calls[1])).toMatchObject({ limit: '1000', extendWindow: '1209600', page: '2' });
+    expect(data.applied).toMatchObject({ limit: 1000, extendWindowSeconds: 1209600, page: 2 });
     expect(data.notice).toBe(
-      `limit 1000 exceeds the cap of 100; served 100. Page 2 starts after the first 200 records. Every limit from 100 to 1000 serves the same pages. extendWindowSeconds 12096000 exceeds the cap of 1209600; served 1209600. Events overlapping the window that began more than 1209600 seconds before from are not counted, or are counted from a later start. To check one entity for such an event, call ioda_find_outages with this entityType, that entity's code as entityCode, from 1789858801, until 1792537201, and extendWindowSeconds 1209600, then keep only the events whose until is at or after 1792537200. ${pastEnd}`,
+      `limit 1001 exceeds the cap of 1000; served 1000. Page 2 starts after the first 2000 records. Every limit of 1000 or more serves the same pages. extendWindowSeconds 12096000 exceeds the cap of 1209600; served 1209600. Events overlapping the window that began more than 1209600 seconds before from are not counted, or are counted from a later start. To check one entity for such an event, call ioda_find_outages with this entityType, that entity's code as entityCode, from 1789858801, until 1792537201, and extendWindowSeconds 1209600, then keep only the events whose until is at or after 1792537200. ${pastEnd}`,
     );
   });
   it.each([
-    [{ entityType: 'region', limit: 1001 }, 'limit: Too big: expected number to be <=1000'],
     [
       { entityType: 'region', extendWindowSeconds: -1 },
       'extendWindowSeconds: Too small: expected number to be >=0',
-    ],
-    [
-      { entityType: 'region', extendWindowSeconds: 12096001 },
-      'extendWindowSeconds: Too big: expected number to be <=12096000',
     ],
   ])('rejects %j outside the schema before HTTP', async (input, bound) => {
     network(() => {
@@ -3116,67 +4825,30 @@ describe('outage summary ranking', () => {
     );
     expect(calls).toHaveLength(0);
   });
-  it('reports a ranking over the 96 KiB budget with the smaller-limit route', async () => {
+  it('returns a full ranking page of wide rows whole on both surfaces', async () => {
     const wide = Array.from({ length: 100 }, (_, index) =>
       country(String(index), 'x'.repeat(600), `geo.${index}`, { overall: 100 - index }, 1),
     );
     network(() => envelope(wide));
-    const result = await runToolContract(summarizeOutages, {
-      ...window,
-      entityType: 'region',
-      limit: 100,
-    });
-    const error = failure(result, JsonRpcErrorCode.ValidationError, 'response_too_large');
-    expect(error.message).toBe('IODA result exceeded the 96 KiB combined response budget.');
-    expect(error.data?.recovery?.hint).toBe(
-      'Call ioda_summarize_outages with a smaller limit and page 0, then continue with that fixed limit.',
+    const data = parity(
+      await runToolContract(summarizeOutages, { ...window, entityType: 'region', limit: 100 }),
     );
+    expect(data.summaries).toEqual(wide);
+    expect(data.pagination).toMatchObject({ limit: 100, returned: 100, more: 'possible' });
     expect(calls).toHaveLength(1);
   });
 });
 
 describe('hostile Markdown fence bounds', () => {
-  it('enforces the independently measured assembled 96 KiB boundary including multibyte enrichment', async () => {
-    const odd = ['', ''];
-    const run = async (padding: number, marker?: unknown[]) => {
-      network(() =>
-        envelope([{ code: 'US', name: `雪${'x'.repeat(padding)}`, ...(marker && { x: marker }) }]),
-      );
-      return runToolContract(searchEntities, { entityType: 'country', limit: 1 });
-    };
-    const baseline = await run(0);
-    parity(baseline);
-    const measure = (result: Result) =>
-      new TextEncoder().encode(JSON.stringify(result.structuredContent)).byteLength +
-      result.content.reduce(
-        (bytes, block) =>
-          bytes + (block.type === 'text' ? new TextEncoder().encode(block.text).byteLength : 0),
-        0,
-      );
-    const ceiling = 96 * 1024;
-    const padding = Math.floor((ceiling - measure(baseline)) / 2);
-    const below = await run(padding);
-    parity(below);
-    expect(measure(below)).toBe(ceiling);
-    failure(await run(padding + 1), JsonRpcErrorCode.ValidationError, 'response_too_large');
-    const oddBaseline = await run(0, odd);
-    const oddPadding = Math.floor((ceiling - measure(oddBaseline)) / 2);
-    const immediatelyBelow = await run(oddPadding, odd);
-    parity(immediatelyBelow);
-    expect(measure(immediatelyBelow)).toBe(ceiling - 1);
-    failure(await run(oddPadding + 1, odd), JsonRpcErrorCode.ValidationError, 'response_too_large');
+  it('returns a multi-megabyte record with multibyte text and a numeric array whole on both surfaces', async () => {
     const numbers = Array.from({ length: 200 }, (_, index) => (index % 7 ? index : null));
-    const numericBaseline = await run(0, numbers);
-    const numericPadding = Math.floor((ceiling - measure(numericBaseline)) / 2);
-    const numericBelow = await run(numericPadding, numbers);
-    parity(numericBelow);
-    expect(text(numericBelow)).toContain(`"x": ${JSON.stringify(numbers)}`);
-    expect(measure(numericBelow)).toBe(ceiling - ((ceiling - measure(numericBaseline)) % 2));
-    failure(
-      await run(numericPadding + 1, numbers),
-      JsonRpcErrorCode.ValidationError,
-      'response_too_large',
-    );
+    const name = `雪${'x'.repeat(1_000_000)}雪`;
+    network(() => envelope([{ code: 'US', name, x: numbers }]));
+    const result = await runToolContract(searchEntities, { entityType: 'country', limit: 1 });
+    const data = parity(result);
+    expect(data.entities).toEqual([{ code: 'US', name, x: numbers }]);
+    expect(text(result)).toContain(`"x": ${JSON.stringify(numbers)}`);
+    expect(text(result)).toContain(JSON.stringify(name));
   });
   it('renders arrays of only numbers and nulls on one line and every other array one item per line', () => {
     expect(renderJson({ values: [1, null, 2.5, -0.001], empty: [], none: {} })).toBe(
@@ -3341,5 +5013,36 @@ describe('hostile Markdown fence bounds', () => {
     const lines = rendered.split('\n');
     expect(lines[0]).toBe('`````json');
     expect(JSON.parse(lines.slice(1, -1).join('\n'))).toEqual(value);
+  });
+});
+
+describe('archive starts', () => {
+  const starts = [
+    ['merit-nt', 1641686400, '2022-01-09'],
+    ['bgp', 1642464000, '2022-01-18'],
+    ['ping-slash24', 1643760000, '2022-02-02'],
+    ['detections', 1643155200, '2022-01-26'],
+  ] as const;
+
+  it.each(starts)('places a window against the %s start (%i)', (series, start) => {
+    expect(archivePosition({ from: start - 86400, until: start - 1 }, series)).toBe('before');
+    expect(archivePosition({ from: start - 86400, until: start }, series)).toBe('before');
+    expect(archivePosition({ from: start - 86400, until: start + 1 }, series)).toBe('straddles');
+    expect(archivePosition({ from: start, until: start + 86400 }, series)).toBe('after');
+  });
+
+  it.each(starts)('names the %s start day in both archive sentences', (series, _start, day) => {
+    const before = archiveNotice(series, 'before');
+    const straddles = archiveNotice(series, 'straddles');
+    expect(before).toContain(`before ${day} UTC, and this window ends by then`);
+    expect(before).not.toMatch(/ioda_search_entities|wider window/);
+    expect(straddles).toContain(`before ${day} UTC, so only the part of this window`);
+  });
+
+  it('names detections rather than a source for the alert, event, and summary start', () => {
+    expect(archiveNotice('detections', 'before')).toContain(
+      'outage detections (alerts, events, or summary rows)',
+    );
+    expect(archiveNotice('bgp', 'before')).toContain('no bgp observations before');
   });
 });

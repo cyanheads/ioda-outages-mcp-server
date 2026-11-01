@@ -216,6 +216,63 @@ describe('network seam', () => {
       ).getNumericSignals(request, createMockContext(), budget()),
     ).rejects.toMatchObject({ data: { reason: 'upstream_schema' } });
   });
+  it('requests gtr by datasource and rejects a series from another source', async () => {
+    /** /signals/raw/country/IR?datasource=gtr, read live 2026-11-01 05:14:36 UTC. */
+    const web = {
+      entityType: 'country',
+      entityCode: 'IR',
+      entityName: 'Iran (Islamic Republic Of)',
+      entityFqid: 'geo.provider.AS.IR',
+      datasource: 'gtr',
+      subtype: 'WEB_SEARCH',
+      from: 1793498400,
+      until: 1793511000,
+      step: 1800,
+      nativeStep: 1800,
+      values: [238911239, 275725229, 358255906, 470225260, null, null, null],
+    };
+    const request = {
+      entityType: 'country' as const,
+      entityCode: 'IR',
+      source: 'gtr' as const,
+      from: 1793499266,
+      until: 1793510066,
+      maxPoints: 2000,
+    };
+    const seen: URL[] = [];
+    const answer = (record: object) => async (input: URL | string) => {
+      const url = new URL(String(input));
+      if (
+        url.hostname !== 'api.ioda.inetintel.cc.gatech.edu' ||
+        url.pathname !== '/v2/signals/raw/country/IR'
+      ) {
+        unexpected.push(url.href);
+        throw new Error(`Unmocked IODA request: ${url.href}`);
+      }
+      seen.push(url);
+      return envelope([[record]]);
+    };
+    const result = await service(answer(web)).getNumericSignals(
+      request,
+      createMockContext(),
+      budget(),
+    );
+    expect(result.series).toEqual([web]);
+    expect(Object.fromEntries(seen[0]?.searchParams ?? [])).toEqual({
+      from: '1793499266',
+      until: '1793510066',
+      datasource: 'gtr',
+      maxPoints: '2000',
+    });
+    await expect(
+      service(answer({ ...web, datasource: 'gtr-norm' })).getNumericSignals(
+        request,
+        createMockContext(),
+        budget(),
+      ),
+    ).rejects.toMatchObject({ data: { reason: 'upstream_schema' } });
+    expect(seen).toHaveLength(2);
+  });
   it('returns partial status with independent failed and successful components', async () => {
     let calls = 0;
     const instance = service(async () => {
@@ -321,6 +378,41 @@ describe('network seam', () => {
     );
     expect(result.pagination).toEqual({ page: 999, limit: 1, returned: 0, more: 'no' });
   });
+  /** IODA matches `search` as `name ILIKE '%' || search || '%'`, where backslash escapes. */
+  it.each([
+    ['%', '\\%'],
+    ['_', '\\_'],
+    ['i_an', 'i\\_an'],
+    ['Telegram_Messenger', 'Telegram\\_Messenger'],
+    ['ir\\an', 'ir\\\\an'],
+    ['\\%_\\', '\\\\\\%\\_\\\\'],
+    ['Iran (Islamic', 'Iran (Islamic'],
+  ])('sends query %j as the literal ILIKE substring %j', async (query, search) => {
+    const fetcher = vi.fn(async (request: URL | string) => {
+      const url = new URL(String(request));
+      if (
+        url.hostname !== 'api.ioda.inetintel.cc.gatech.edu' ||
+        url.pathname !== '/v2/entities/query'
+      )
+        throw new Error(`Unmocked IODA request: ${url.href}`);
+      return envelope([]);
+    });
+    await service(fetcher).searchEntities({ ...input, query }, createMockContext(), budget());
+    expect(fetcher).toHaveBeenCalledOnce();
+    const sent = new URL(String(fetcher.mock.calls[0]?.[0])).searchParams;
+    expect(sent.get('search')).toBe(search);
+    expect(sent.get('entityType')).toBe('country');
+  });
+  it('sends no search parameter without a query', async () => {
+    const fetcher = vi.fn(async (request: URL | string) => {
+      const url = new URL(String(request));
+      if (url.hostname !== 'api.ioda.inetintel.cc.gatech.edu')
+        throw new Error(`Unmocked IODA request: ${url.href}`);
+      return envelope([]);
+    });
+    await service(fetcher).searchEntities(input, createMockContext(), budget());
+    expect(new URL(String(fetcher.mock.calls[0]?.[0])).searchParams.has('search')).toBe(false);
+  });
   it.each([
     [400, 'upstream_bad_request'],
     [422, 'upstream_unprocessable'],
@@ -353,23 +445,43 @@ describe('network seam', () => {
       });
     },
   );
-  it('cancels an oversized streaming body without retry', async () => {
+  it('fails a streaming body over 4 MiB as upstream_schema after one request, cancelling it', async () => {
     const cancel = vi.fn();
     const fetcher = vi.fn(
       async () =>
         new Response(
           new ReadableStream({
             start(controller) {
-              controller.enqueue(new Uint8Array(2097153));
+              controller.enqueue(new Uint8Array(4 * 1024 * 1024));
+              controller.enqueue(new Uint8Array(1));
             },
             cancel,
           }),
         ),
     );
-    await expect(
+    const { error } = (await settle(
       service(fetcher).searchEntities(input, createMockContext(), budget()),
-    ).rejects.toMatchObject({ data: { reason: 'response_too_large' } });
+    )) as { error: McpError };
+    expect(error.code).toBe(JsonRpcErrorCode.SerializationError);
+    expect(error.message).toBe('IODA returned a response body over 4 MiB.');
+    expect(error.data).toEqual({
+      reason: 'upstream_schema',
+      recovery: {
+        hint: 'Retry ioda_search_entities once with a smaller limit and page 0; if the response still cannot be parsed, stop this search and report the response schema failure.',
+      },
+    });
     expect(cancel).toHaveBeenCalledOnce();
+    expect(fetcher).toHaveBeenCalledOnce();
+  });
+  it('reads a valid body of exactly 4 MiB', async () => {
+    const rows = [{ code: 'US', name: '' }];
+    const shell = JSON.stringify({ error: null, data: rows });
+    rows[0] = { code: 'US', name: 'x'.repeat(4 * 1024 * 1024 - shell.length) };
+    const body = JSON.stringify({ error: null, data: rows });
+    expect(new TextEncoder().encode(body).byteLength).toBe(4 * 1024 * 1024);
+    const fetcher = vi.fn(async () => new Response(body));
+    const result = await service(fetcher).searchEntities(input, createMockContext(), budget());
+    expect(result.entities).toEqual(rows);
     expect(fetcher).toHaveBeenCalledOnce();
   });
   it('retries transient HTTP only after two seconds', async () => {
@@ -494,7 +606,7 @@ describe('missing metadata entity', () => {
     [
       'oversized',
       new Response(
-        `{"error":"cannot find corresponding metadata entity 0","pad":"${'x'.repeat(2 * 1024 * 1024)}"}`,
+        `{"error":"cannot find corresponding metadata entity 0","pad":"${'x'.repeat(4 * 1024 * 1024)}"}`,
         { status: 400 },
       ),
     ],
@@ -914,11 +1026,6 @@ describe('upstream timeout recovery', () => {
     ],
   ] as const)('routes a %s timeout to the levers that tool takes', (tool, hint) => {
     expect(recoveryFor('upstream_timeout', tool)).toBe(hint);
-  });
-  it('routes a summary overflow to a smaller limit from page 0', () => {
-    expect(recoveryFor('response_too_large', 'ioda_summarize_outages')).toBe(
-      'Call ioda_summarize_outages with a smaller limit and page 0, then continue with that fixed limit.',
-    );
   });
   it('carries the event levers on a timed-out events exchange and on the status events component', async () => {
     const hanging = statusFetch({ events: () => new Promise<Response>(() => {}) });

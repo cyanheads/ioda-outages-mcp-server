@@ -1,35 +1,84 @@
 /**
- * @fileoverview Canonical IODA inputs and exact lossless response budgeting.
+ * @fileoverview Canonical IODA inputs, served caps, lossless rendering, and the shared result path.
  * @module mcp-server/tools/ioda-common
  */
 import { type Context, z } from '@cyanheads/mcp-ts-core';
 import { JsonRpcErrorCode, validationError } from '@cyanheads/mcp-ts-core/errors';
-import { markdownLink } from '@cyanheads/mcp-ts-core/utils';
+import { ATTR_MCP_TOOL_NAME, createCounter, markdownLink } from '@cyanheads/mcp-ts-core/utils';
+import { activeServerConfig } from '@/config/server-config.js';
 import { cancelledError, type IodaTool, iodaError } from '@/services/ioda/errors.js';
 import {
+  ARCHIVE_STARTS,
+  type Entity,
   type EntityReference,
   type EntityType,
   EntityTypeSchema,
   MAX_POINTS,
-  type NumericSource,
-  NumericSourceSchema,
   type Pagination,
   type RelatedScope,
+  type SignalSource,
+  SignalSourceSchema,
   type Source,
   SourceSchema,
 } from '@/services/ioda/index.js';
 import type { AlertRequest, EventRequest, SummaryRequest } from '@/services/ioda/types.js';
 
 /**
- * The largest value one call serves. Each schema `.max()` admits ten times its cap;
- * a read between the two is served at the cap and disclosed in the notice.
+ * The largest value one call serves. A larger read is served at the cap and disclosed in the
+ * notice, unless IODA_CLAMP_LIMITS=false makes the cap the schema maximum.
  */
 export const SERVED_CAPS = {
-  limit: 100,
+  limit: 1000,
   maxPoints: MAX_POINTS,
   lookbackHours: 24,
   extendWindowSeconds: 1209600,
 } as const;
+type CappedInput = keyof typeof SERVED_CAPS;
+const clamping = () => activeServerConfig().clampLimits;
+/**
+ * A whole-number input served at its cap. Clamping, the default, accepts any larger value, so
+ * the integer check is `multipleOf(1)` plus a refinement (`multipleOf` tolerates float noise
+ * such as 20.000000000000004) rather than `.int()`, which advertises 9007199254740991. Under
+ * IODA_CLAMP_LIMITS=false the cap is enforced with Zod's own `too_big` issue. The mode is read
+ * at parse time, never when the schema is built: `tool()` emits every input schema when its
+ * module is imported, before `setup()` parses the environment, so a schema that read the mode
+ * when built (`z.lazy` included, which resolves on that first emission) would keep the default.
+ */
+export function cappedInput(name: CappedInput, minimum: number) {
+  const cap = SERVED_CAPS[name];
+  const whole = `Use a whole number for ${name}.`;
+  return z
+    .number()
+    .multipleOf(1, whole)
+    .min(minimum)
+    .refine(Number.isInteger, { message: whole, when: ({ issues }) => issues.length === 0 })
+    .check((payload) => {
+      if (payload.issues.length || clamping() || payload.value <= cap) return;
+      payload.issues.push({
+        code: 'too_big',
+        origin: 'number',
+        maximum: cap,
+        inclusive: true,
+        input: payload.value,
+      });
+    });
+}
+/**
+ * The JSON Schema metadata of a {@link cappedInput}, applied last: its description and
+ * `maximum` are getters, read each time `tools/list` emits the schema.
+ */
+export function cappedMeta(name: CappedInput, describe: (clamped: boolean, cap: number) => string) {
+  const cap = SERVED_CAPS[name];
+  return {
+    type: 'integer',
+    get description() {
+      return describe(clamping(), cap);
+    },
+    get maximum() {
+      return clamping() ? undefined : cap;
+    },
+  };
+}
 
 /** Flag-free grammars preserve case and padding in the advertised JSON Schema. */
 const inputGrammars = {
@@ -60,17 +109,17 @@ export const queryInput = z
   )
   .optional()
   .describe(
-    'Name substring, trimmed to at most 200 UTF-16 code units; blank is omitted. Mutually exclusive with entityCode.',
+    'Case-insensitive name substring, matched literally (% and _ are not wildcards); trimmed to at most 200 UTF-16 code units, and blank is omitted. Mutually exclusive with entityCode.',
   );
-/** Exactly one numeric source; detections from gtr are available through the event tools. */
-export const numericSourceInput = z
+/** Exactly one ioda_get_signals source: a core source or gtr. */
+export const signalSourceInput = z
   .string()
   .regex(
-    inputPattern(inputGrammars.numericSource, false),
-    'Use source bgp, ping-slash24, or merit-nt; for gtr detections call ioda_find_outages or ioda_get_alerts with source gtr.',
+    inputPattern(`${inputGrammars.numericSource}|[gG][tT][rR]`, false),
+    'Call ioda_get_signals with source bgp, ping-slash24, merit-nt, or gtr; case and surrounding whitespace are accepted.',
   )
   .describe(
-    'Exactly bgp, ping-slash24, or merit-nt; case and whitespace normalized. gtr and ucsd-nt are not supported numeric sources.',
+    'Exactly bgp, ping-slash24, merit-nt, or gtr; case and whitespace normalized. gtr (Google Transparency Report traffic) covers countries only; ucsd-nt is not supported.',
   );
 
 /** Transport strings admit the canonicalization promised to callers. */
@@ -142,16 +191,19 @@ export const scopeInputs = {
       'Scope entity code, normalized like entityCode for relatedToType (IR, 1829, AS42337, 60627-IR); resolve names with ioda_search_entities. Provide with relatedToType.',
     ),
 };
-/** One upstream page with a fixed limit across continuation calls. */
+/**
+ * One upstream page with a fixed limit across continuation calls. `page` has no cap, so it keeps
+ * `.int()`: its advertised safe-integer maximum is the bound `pagination.page` echoes.
+ */
 export const pageInputs = {
-  limit: z
-    .number()
-    .int()
-    .min(1)
-    .max(SERVED_CAPS.limit * 10)
+  limit: cappedInput('limit', 1)
     .default(20)
-    .describe(
-      'Upstream page size; values above 100 are served as 100 with a notice. Keep fixed when continuing.',
+    .meta(
+      cappedMeta('limit', (clamped, cap) =>
+        clamped
+          ? `Default 20; a larger value returns at most ${cap} and says so. Keep fixed when continuing.`
+          : `Default 20, at most ${cap}. Keep fixed when continuing.`,
+      ),
     ),
   page: z
     .number()
@@ -160,13 +212,19 @@ export const pageInputs = {
     .default(0)
     .describe('Zero-based upstream page; restart at 0 when changing limit.'),
 };
+/** The UTC day of an archive start, as YYYY-MM-DD. */
+function archiveDay(series: keyof typeof ARCHIVE_STARTS): string {
+  return new Date(ARCHIVE_STARTS[series] * 1000).toISOString().slice(0, 10);
+}
 /** Historical windows are always explicit. */
 export const windowInputs = {
   from: z
     .number()
     .int()
     .positive()
-    .describe('Inclusive Unix seconds UTC; no milliseconds; window at most 31 days.'),
+    .describe(
+      `Inclusive Unix seconds UTC; no milliseconds; window at most 31 days. IODA's API holds no outage detections before ${archiveDay('detections')} UTC.`,
+    ),
   until: z
     .number()
     .int()
@@ -178,7 +236,7 @@ export const windowInputs = {
 /** Requested signal bounds differ from the aligned returned bucket interval. */
 export const signalWindowInputs = {
   from: windowInputs.from.describe(
-    'Requested start Unix seconds UTC; window at most 31 days. Aligned returned buckets may begin earlier.',
+    `Requested start Unix seconds UTC; window at most 31 days. Aligned returned buckets may begin earlier. IODA's API holds no merit-nt observations before ${archiveDay('merit-nt')} UTC, no bgp before ${archiveDay('bgp')}, and no ping-slash24 before ${archiveDay('ping-slash24')}.`,
   ),
   until: windowInputs.until.describe(
     'Requested end Unix seconds UTC, after from and no later than now. Returned bucket bounds are exclusive and may extend beyond this requested bound due to alignment.',
@@ -215,10 +273,17 @@ function optionalText(value: string | undefined): string | undefined {
 export function searchQuery(value: string | undefined): string | undefined {
   return optionalText(value);
 }
-/** Canonicalize a numeric source admitted by its transport grammar. */
-export function numericSource(value: string): NumericSource {
-  return NumericSourceSchema.parse(value.trim().toLowerCase());
+/** Canonicalize an ioda_get_signals source admitted by its transport grammar. */
+export function signalSource(value: string): SignalSource {
+  return SignalSourceSchema.parse(value.trim().toLowerCase());
 }
+/**
+ * Empty-result guidance for an ASN. IODA answers an ASN it holds no metadata for with a
+ * synthesized entity instead of an error, and unknown ASNs return empty evidence, not
+ * entity_not_found. Every placeholder row carries ip_count "0"; no real row did on 2026-11-01.
+ */
+export const asnPlaceholderNotice =
+  'A returned ioda_search_entities row does not confirm IODA holds data for an ASN: IODA answers an ASN it has no record of with a placeholder row whose attrs.ip_count is "0".';
 /** Each tool's declared invalid_entity contract supplies the recovery hint. */
 function invalidEntity(message: string) {
   return validationError(message, { reason: 'invalid_entity' });
@@ -378,45 +443,69 @@ interface Served {
   notice?: string;
   value: number;
 }
-/** Serve an over-cap read at its cap, naming requested, served, and the route to the rest. */
+/** Created on first use: a counter made at import binds to the no-op meter OTel starts with. */
+let clampCounter: ReturnType<typeof createCounter> | undefined;
+/**
+ * Serve an over-cap read at its cap, naming requested, served, and the route to the rest. Each
+ * clamp writes one log line and one count labelled by tool and input; the requested value is
+ * caller-chosen, so it goes on the log line only.
+ */
 function serve(
-  name: keyof typeof SERVED_CAPS,
+  name: CappedInput,
   requested: number,
+  ctx: Context,
+  tool: IodaTool,
   rest: (cap: number) => string,
 ): Served {
   const cap = SERVED_CAPS[name];
   if (requested <= cap) return { value: requested };
+  ctx.log.info(`Served ${name} at its cap`, { tool, input: name, requested, served: cap });
+  clampCounter ??= createCounter(
+    'ioda.input.clamps',
+    'Over-cap inputs served at their cap',
+    '{clamps}',
+  );
+  clampCounter.add(1, { [ATTR_MCP_TOOL_NAME]: tool, 'ioda.input.name': name });
   return {
     value: cap,
     notice: `${name} ${requested} exceeds the cap of ${cap}; served ${cap}. ${rest(cap)}`,
   };
 }
 /** Pages count served records, so a later page starts after page × cap records. */
-export function clampLimit(requested: number, page: number): Served {
+export function clampLimit(requested: number, page: number, ctx: Context, tool: IodaTool): Served {
   return serve(
     'limit',
     requested,
+    ctx,
+    tool,
     (cap) =>
-      `${page > 0 ? `Page ${page} starts after the first ${page * cap} records. ` : ''}Every limit from ${cap} to ${cap * 10} serves the same pages.`,
+      `${page > 0 ? `Page ${page} starts after the first ${page * cap} records. ` : ''}Every limit of ${cap} or more serves the same pages.`,
   );
 }
-/** Finer resolution than the capped target comes from splitting the window. */
-export function clampMaxPoints(requested: number): Served {
+/** IODA aggregates to the served target, so any larger request returns the same buckets. */
+export function clampMaxPoints(requested: number, ctx: Context): Served {
   return serve(
     'maxPoints',
     requested,
-    () =>
-      'For finer buckets, split the window into adjacent ioda_get_signals calls; a bucket that straddles the split point is returned by both calls.',
+    ctx,
+    'ioda_get_signals',
+    (cap) => `Every maxPoints of ${cap} or more requests the same aggregation.`,
   );
 }
-/** The uncovered earlier hours stay reachable through the standalone window tools. */
-export function clampLookbackHours(requested: number, asOf: number): Served {
-  return serve(
-    'lookbackHours',
-    requested,
-    (cap) =>
-      `For the uncovered earlier window, call ioda_find_outages, ioda_get_alerts, or ioda_get_signals (once per source) with the same entityType and entityCode, from ${asOf - requested * 3600} and until ${asOf - cap * 3600}.`,
-  );
+/**
+ * The uncovered earlier hours stay reachable through the standalone window tools, whose windows
+ * span at most 31 days: a longer uncovered span is named by its latest 31 days.
+ */
+export function clampLookbackHours(requested: number, asOf: number, ctx: Context): Served {
+  return serve('lookbackHours', requested, ctx, 'ioda_get_status', (cap) => {
+    const until = asOf - cap * 3600;
+    const call = (from: number) =>
+      `call ioda_find_outages, ioda_get_alerts, or ioda_get_signals (once per source) with the same entityType and entityCode, from ${from} and until ${until}`;
+    const uncoveredSeconds = (requested - cap) * 3600;
+    if (uncoveredSeconds <= MAX_WINDOW_SECONDS)
+      return `For the uncovered earlier window, ${call(until - uncoveredSeconds)}.`;
+    return `The uncovered earlier window spans ${requested - cap} hours, over the 31-day window limit. For its latest 31 days, ${call(until - MAX_WINDOW_SECONDS)}; for earlier hours back to from ${until - uncoveredSeconds}, repeat with adjacent windows of at most 31 days, each ending at the previous from.`;
+  });
 }
 /**
  * IODA selects alert transitions from `from − extension` to `until + extension`. Alerts return
@@ -431,8 +520,9 @@ export function clampExtendWindow(
   tool: 'ioda_find_outages' | 'ioda_get_alerts' | 'ioda_summarize_outages',
   window: { from: number; until: number },
   now: number,
+  ctx: Context,
 ): Served {
-  return serve('extendWindowSeconds', requested, (cap) => {
+  return serve('extendWindowSeconds', requested, ctx, tool, (cap) => {
     const shift = Math.min(requested - cap, MAX_WINDOW_SECONDS - 1);
     const from = window.from - shift;
     const earlier = `from ${from}, until ${Math.min(window.until, from + MAX_WINDOW_SECONDS)}`;
@@ -533,6 +623,55 @@ export const unknownCodeNotice =
 /** Empty first-page guidance for a relatedTo scope: IODA lists nothing within an unknown scope code. */
 export const unknownScopeNotice =
   'IODA returns an empty page rather than an error for an unknown relatedToCode; call ioda_search_entities with relatedToType as entityType and relatedToCode as entityCode to verify it.';
+/**
+ * A region row IODA keeps as a geolocation catch-all rather than a province or state. IODA names
+ * them `[Invalid Region (N)]` or `Unknown Region in <country>`; of IODA's 4,884 regions on
+ * 2026-11-01, the 292 placeholders matched one of the two shapes and no other region matched either.
+ */
+export function isPlaceholderRegion(entity: Entity): boolean {
+  return (
+    entity.type === 'region' &&
+    (/^\[Invalid Region \(\d+\)\]$/.test(entity.name) ||
+      entity.name.startsWith('Unknown Region in '))
+  );
+}
+/** Names a page's placeholder region codes once each, in page order; rows stay as IODA returns them. */
+export function placeholderRegionNotice(entities: readonly Entity[]): string | undefined {
+  const codes = [...new Set(entities.filter(isPlaceholderRegion).map((entity) => entity.code))];
+  if (!codes.length) return;
+  return codes.length === 1
+    ? `Region ${codes[0]} is an IODA geolocation catch-all rather than a province or state; do not report it as one.`
+    : `Regions ${codes.join(', ')} are IODA geolocation catch-alls rather than provinces or states; do not report them as such.`;
+}
+/** A series with a known archive start: one core numeric source, or outage detections. */
+export type ArchiveSeries = keyof typeof ARCHIVE_STARTS;
+/**
+ * Where a window sits against an archive start. `before` ends at or before the start, so it can
+ * hold no records; `straddles` begins before it. Pass alert windows widened by their extension.
+ */
+export function archivePosition(
+  window: { from: number; until: number },
+  series: ArchiveSeries,
+): 'before' | 'straddles' | 'after' {
+  const start = ARCHIVE_STARTS[series];
+  if (window.until <= start) return 'before';
+  return window.from < start ? 'straddles' : 'after';
+}
+/**
+ * The archive sentence for an empty result. `before` replaces advice to verify the code or try
+ * an earlier or wider window, which reaches further into the gap; `straddles` joins the tool's
+ * usual guidance.
+ */
+export function archiveNotice(series: ArchiveSeries, position: 'before' | 'straddles'): string {
+  const date = archiveDay(series);
+  const records =
+    series === 'detections'
+      ? 'outage detections (alerts, events, or summary rows)'
+      : `${series} observations`;
+  return position === 'before'
+    ? `IODA's API holds no ${records} before ${date} UTC, and this window ends by then, so an earlier window or another entity code returns none either.`
+    : `IODA's API holds no ${records} before ${date} UTC, so only the part of this window from then on can return any.`;
+}
 /** Membership completeness is independent of returned outage-row page exhaustion. */
 export function relatedMembershipNotice(
   tool: 'ioda_find_outages' | 'ioda_get_alerts' | 'ioda_summarize_outages',
@@ -569,7 +708,10 @@ export function composeEnrichment(
     ...(full && { truncated: { shown: full.returned, cap: full.limit } }),
   };
 }
-/** Validate and preflight both final surfaces before publishing any enrichment. */
+/**
+ * Validate the domain result and its enrichment, then publish the enrichment unless the call was
+ * cancelled or ran past its deadline. The page is the caller's page: nothing here shortens it.
+ */
 export function finish<S extends z.ZodObject>(
   schema: S,
   output: z.input<S>,
@@ -580,22 +722,6 @@ export function finish<S extends z.ZodObject>(
 ): z.output<S> {
   const domain = schema.parse(output);
   const parsedEnrichment = EnrichmentSchema.parse(values);
-  const trailer = `\n\n${Object.entries(parsedEnrichment)
-    .map(([key, value]) => enrichmentTrailer[key as keyof typeof enrichmentTrailer].render(value))
-    .join('\n')}`;
-  const encoder = new TextEncoder();
-  // Domain and enrichment keys are disjoint, so the merged payload is the two parsed halves.
-  const bytes =
-    encoder.encode(JSON.stringify({ ...domain, ...parsedEnrichment })).byteLength +
-    renderOutput(domain).reduce((sum, block) => sum + encoder.encode(block.text).byteLength, 0) +
-    encoder.encode(trailer).byteLength;
-  if (bytes > 96 * 1024)
-    throw iodaError(
-      JsonRpcErrorCode.ValidationError,
-      'response_too_large',
-      'IODA result exceeded the 96 KiB combined response budget.',
-      tool,
-    );
   if (ctx.signal.aborted) throw cancelledError(tool);
   if (Date.now() >= deadline)
     throw iodaError(

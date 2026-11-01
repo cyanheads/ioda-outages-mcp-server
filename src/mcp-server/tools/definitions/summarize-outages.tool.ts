@@ -11,6 +11,10 @@ import {
   SummarySchema,
 } from '@/services/ioda/index.js';
 import {
+  archiveNotice,
+  archivePosition,
+  cappedInput,
+  cappedMeta,
   clampExtendWindow,
   clampLimit,
   composeEnrichment,
@@ -26,6 +30,7 @@ import {
   ignoreMethodsInput,
   invocationClock,
   pageInputs,
+  placeholderRegionNotice,
   relatedMembershipNotice,
   relatedScope,
   renderOutput,
@@ -46,7 +51,7 @@ const Output = z.object({
 });
 export const summarizeOutages = tool('ioda_summarize_outages', {
   description:
-    "Rank the entities of one entityType by IODA's outage summary score over an explicit Unix-second window of at most 31 days, such as the countries or a country's regions hit hardest this week. Rows keep IODA's order, descending scores.overall. IODA merges overlapping events from different sources, scores each merged event as the product of its sources' scores, and sums the merged events into overall; each <source>.<method> key sums that source's event scores. Scores are window totals for ranking the rows of one request, not current status, and are not comparable across requests with different windows. Add entityCode for one entity, or relatedToType and relatedToCode to rank entityType entities within one country, region, ASN, or geoasn; large type-only rankings can time out. Event-start selection includes until, so adjacent windows can duplicate boundary detections. ignoreMethods excludes source.method, source.*, or *.method upstream before scoring; keep exclusions fixed when comparing rankings or drilling into events and alerts. An empty result is not an all-clear. Pages are zero-based; keep filters and limit fixed.",
+    "Rank the entities of one entityType by IODA's outage summary score over an explicit Unix-second window of at most 31 days, such as the countries or a country's regions hit hardest this week. Rows keep IODA's order, descending scores.overall. Region rankings can include IODA geolocation catch-alls named [Invalid Region (N)] or Unknown Region in <country>, which are not provinces or states; a notice names them. IODA merges overlapping events from different sources, scores each merged event as the product of its sources' scores, and sums the merged events into overall; each <source>.<method> key sums that source's event scores. Scores are window totals for ranking the rows of one request, not current status, and are not comparable across requests with different windows. Add entityCode for one entity, or relatedToType and relatedToCode to rank entityType entities within one country, region, ASN, or geoasn; large type-only rankings can time out. Event-start selection includes until, so adjacent windows can duplicate boundary detections. ignoreMethods excludes source.method, source.*, or *.method upstream before scoring; keep exclusions fixed when comparing rankings or drilling into events and alerts. An empty result is not an all-clear. Pages are zero-based; keep filters and limit fixed.",
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: true },
   input: z.object({
     entityType: entityInputs.entityType,
@@ -55,14 +60,14 @@ export const summarizeOutages = tool('ioda_summarize_outages', {
     ...windowInputs,
     ...pageInputs,
     ignoreMethods: ignoreMethodsInput,
-    extendWindowSeconds: z
-      .number()
-      .int()
-      .min(0)
-      .max(SERVED_CAPS.extendWindowSeconds * 10)
+    extendWindowSeconds: cappedInput('extendWindowSeconds', 0)
       .default(SERVED_CAPS.extendWindowSeconds)
-      .describe(
-        "Seconds before from to search for the start of an event overlapping the window, and after until for its recovery; defaults to 1209600 (14 days), IODA's default. Values above 1209600 are served as 1209600 with a notice. Large extensions on type-only rankings can time out; zero may miss long-running detections.",
+      .meta(
+        cappedMeta(
+          'extendWindowSeconds',
+          (clamped, cap) =>
+            `Seconds before from to search for the start of an event overlapping the window, and after until for its recovery; defaults to 1209600 (14 days), IODA's default. ${clamped ? `Values above ${cap} are served as ${cap} with a notice.` : `At most ${cap}.`} Large extensions on type-only rankings can time out; zero may miss long-running detections.`,
+        ),
       ),
   }),
   output: Output,
@@ -147,17 +152,9 @@ export const summarizeOutages = tool('ioda_summarize_outages', {
       reason: 'upstream_schema',
       code: JsonRpcErrorCode.SerializationError,
       thrownBy: 'service',
-      when: 'IODA summary rows lack an entity, a numeric scores.overall, or an integer event_cnt, or carry a non-numeric score.',
+      when: 'IODA summary rows lack an entity, a numeric scores.overall, or an integer event_cnt, carry a non-numeric score, or arrive in a response body over 4 MiB.',
       recovery:
         'Retry ioda_summarize_outages once with a narrower window; if the response still cannot be parsed, stop this investigation and report the response schema failure.',
-    },
-    {
-      reason: 'response_too_large',
-      code: JsonRpcErrorCode.ValidationError,
-      thrownBy: 'service',
-      when: 'The upstream body or combined response exceeds its byte budget.',
-      recovery:
-        'Call ioda_summarize_outages with a smaller limit and page 0, then continue with that fixed limit.',
     },
   ],
   async handler(input, ctx) {
@@ -168,12 +165,13 @@ export const summarizeOutages = tool('ioda_summarize_outages', {
     // entityType is required here, so a blank one is an invalid type before any scope check.
     const type = entityType(input.entityType);
     const scope = relatedScope(input);
-    const limit = clampLimit(input.limit, input.page);
+    const limit = clampLimit(input.limit, input.page, ctx, 'ioda_summarize_outages');
     const extend = clampExtendWindow(
       input.extendWindowSeconds,
       'ioda_summarize_outages',
       input,
       now,
+      ctx,
     );
     const request = {
       entityType: type,
@@ -187,6 +185,10 @@ export const summarizeOutages = tool('ioda_summarize_outages', {
       page: input.page,
     };
     const result = await getIodaService().getSummary(request, ctx, { deadline });
+    const empty = !result.summaries.length;
+    // Ranked events start at or before until, so the window alone places an empty first page against the start.
+    const archive = empty && !input.page ? archivePosition(input, 'detections') : undefined;
+    const ordinary = archive === 'straddles' || archive === 'after';
     return finish(
       Output,
       result,
@@ -200,12 +202,14 @@ export const summarizeOutages = tool('ioda_summarize_outages', {
           limit.notice,
           extend.notice,
           relatedMembershipNotice('ioda_summarize_outages', request),
-          !result.summaries.length &&
-            (input.page > 0
-              ? emptyPageNotice('ioda_summarize_outages')
-              : 'No outage summaries were returned for this scope and window. Call ioda_find_outages for detected events or ioda_get_signals for measurement coverage, or ioda_summarize_outages with a wider window or fewer filters. This is not an all-clear.'),
-          !result.summaries.length && !input.page && request.entityCode && unknownCodeNotice,
-          !result.summaries.length && !input.page && scope && unknownScopeNotice,
+          placeholderRegionNotice(result.summaries.map((summary) => summary.entity)),
+          empty && input.page > 0 && emptyPageNotice('ioda_summarize_outages'),
+          archive === 'before' && archiveNotice('detections', 'before'),
+          ordinary &&
+            'No outage summaries were returned for this scope and window. Call ioda_find_outages for detected events or ioda_get_signals for measurement coverage, or ioda_summarize_outages with a wider window or fewer filters. This is not an all-clear.',
+          ordinary && request.entityCode && unknownCodeNotice,
+          ordinary && scope && unknownScopeNotice,
+          archive === 'straddles' && archiveNotice('detections', 'straddles'),
         ],
         result.pagination,
       ),

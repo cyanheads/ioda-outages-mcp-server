@@ -9,9 +9,9 @@ import type {
   EntityType,
   Event,
   NumericSeries,
-  NumericSource,
   Pagination,
   Provenance,
+  SignalSource,
   Source,
   Summary,
   TimeWindow,
@@ -67,7 +67,7 @@ export interface SummaryRequest extends PageRequest, ScopeFilter, TimeWindow {
 /** Canonical single-source signal request. */
 export interface SignalRequest extends EntityReference, TimeWindow {
   maxPoints: number;
-  source: NumericSource;
+  source: SignalSource;
 }
 /** Captured status clock and lookback window. */
 export interface StatusRequest extends EntityReference {

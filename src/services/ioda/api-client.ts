@@ -10,7 +10,11 @@ import type { Provenance } from './schemas.js';
 import type { IodaDependencies, RequestBudget } from './types.js';
 
 const ORIGIN = 'https://api.ioda.inetintel.cc.gatech.edu/v2';
-const BODY_BYTES = 2 * 1024 * 1024;
+/**
+ * A memory guard, not a page budget: the heaviest page the caps request (1,000 asn events with
+ * nested alerts over 31 days) measured about 0.9 MB, so a larger body is malformed output.
+ */
+const BODY_BYTES = 4 * 1024 * 1024;
 /** Classified HTTP failures; any other non-2xx status is upstream_unavailable. */
 const HTTP_REASONS: Partial<Record<number, IodaReason>> = {
   400: 'upstream_bad_request',
@@ -330,10 +334,11 @@ async function readBoundedBody(
       size += value.byteLength;
       if (size > BODY_BYTES) {
         cancel();
+        // Not transient to withRetry, so the oversized fetch is never repeated.
         throw iodaError(
-          JsonRpcErrorCode.ValidationError,
-          'response_too_large',
-          'IODA response exceeded the 2 MiB upstream body budget.',
+          JsonRpcErrorCode.SerializationError,
+          'upstream_schema',
+          'IODA returned a response body over 4 MiB.',
           tool,
         );
       }

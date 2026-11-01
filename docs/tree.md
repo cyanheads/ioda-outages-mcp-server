@@ -1,6 +1,6 @@
 # ioda-outages-mcp-server - Directory Structure
 
-Generated on: 2026-10-29 02:12:17
+Generated on: 2026-11-01 06:41:19
 
 ```text
 ioda-outages-mcp-server/
@@ -141,6 +141,8 @@ ioda-outages-mcp-server/
 │   └── ioda-outages-guide/
 │       └── SKILL.md
 ├── src/
+│   ├── config/
+│   │   └── server-config.ts
 │   ├── mcp-server/
 │   │   └── tools/
 │   │       ├── definitions/
@@ -162,6 +164,8 @@ ioda-outages-mcp-server/
 │   │       └── types.ts
 │   └── index.ts
 ├── tests/
+│   ├── config/
+│   │   └── server-config.test.ts
 │   ├── fixtures/
 │   │   └── outage-contracts.json
 │   ├── integration/
