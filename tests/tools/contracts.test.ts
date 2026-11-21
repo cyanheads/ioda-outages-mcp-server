@@ -556,7 +556,7 @@ describe('assembled contract parity', () => {
 });
 
 describe('served caps', () => {
-  it('serves every input accepted before the caps with an unchanged request, applied and enrichment', async () => {
+  it('serves in-range inputs without clamping or reporting truncation', async () => {
     network(() =>
       envelope(Array.from({ length: 100 }, (_, index) => ({ code: String(index), name: 'r' }))),
     );
@@ -600,6 +600,7 @@ describe('served caps', () => {
       extendWindow: '1209600',
       format: 'ioda',
       overall: 'false',
+      orderBy: 'time/asc',
       limit: '100',
       page: '0',
     });
@@ -607,6 +608,7 @@ describe('served caps', () => {
       ...window,
       ...entityInput,
       includeAlerts: false,
+      order: 'time_asc',
       extendWindowSeconds: 1209600,
       limit: 100,
       page: 0,
@@ -805,6 +807,11 @@ describe('served caps', () => {
     ]);
   });
   it('counts each clamp labelled by tool and input name, never the requested value', async () => {
+    vi.resetModules();
+    const fresh = await import('../../src/mcp-server/tools/ioda-common.js');
+    const ctx = createMockContext();
+    fresh.clampLimit(5000, 3, ctx, 'ioda_find_outages');
+
     const created: unknown[][] = [];
     const added: unknown[][] = [];
     const meter = {
@@ -817,10 +824,6 @@ describe('served caps', () => {
       metrics.setGlobalMeterProvider({ getMeter: () => meter } as unknown as MeterProvider),
     ).toBe(true);
     try {
-      // A fresh module, so its counter is created on the first clamp from the provider above.
-      vi.resetModules();
-      const fresh = await import('../../src/mcp-server/tools/ioda-common.js');
-      const ctx = createMockContext();
       fresh.clampLimit(1000, 0, ctx, 'ioda_find_outages');
       expect(created).toEqual([]);
       fresh.clampLimit(5000, 3, ctx, 'ioda_find_outages');
@@ -1608,12 +1611,14 @@ describe('event extension defaults by scope', () => {
         extendWindow: '86400',
         format: 'ioda',
         overall: 'false',
+        orderBy: 'time/asc',
         limit: '20',
         page: '0',
       });
       expect(data.applied).toEqual({
         ...window,
         includeAlerts: false,
+        order: 'time_asc',
         extendWindowSeconds: 86400,
         limit: 20,
         page: 0,
@@ -1688,6 +1693,31 @@ describe('event extension defaults by scope', () => {
 });
 
 describe('errors visible on both consumption paths', () => {
+  it.each([
+    ['fetch', 'IODA network request failed.'],
+    ['body', 'IODA response stream failed.'],
+  ] as const)('keeps the public %s failure stable after both attempts', async (phase, message) => {
+    network(() => {
+      const cause = Object.assign(new Error('private proxy credential'), { code: 'ECONNREFUSED' });
+      const error = new TypeError('fetch failed', { cause });
+      if (phase === 'fetch') throw error;
+      return new Response(new ReadableStream({ start: (controller) => controller.error(error) }));
+    });
+    const pending = runToolContract(searchEntities, { entityType: 'country' });
+    await vi.advanceTimersByTimeAsync(4000);
+    const result = await pending;
+    const error = failure(result, JsonRpcErrorCode.ServiceUnavailable, 'upstream_unavailable');
+    expect(error.message).toBe(`${message} (failed after 2 attempts)`);
+    expect(error.data).toMatchObject({
+      retryAttempts: 2,
+      recovery: {
+        hint: 'Retry ioda_search_entities later after the public upstream service recovers.',
+      },
+    });
+    expect(JSON.stringify(result)).not.toMatch(/private proxy credential|ECONNREFUSED|causeChain/);
+    expect(calls).toHaveLength(2);
+  });
+
   const invocations = [
     { name: 'events', run: () => runToolContract(findOutages, window) },
     { name: 'alerts', run: () => runToolContract(getAlerts, window) },
@@ -2143,6 +2173,7 @@ describe('status collection contract', () => {
       sources: ['bgp', 'ping-slash24', 'merit-nt'],
       maxPoints: 2000,
       publicationAllowanceSeconds: 1800,
+      publicationAllowances: { bgp: 1800, 'ping-slash24': 1800, 'merit-nt': 10800 },
     });
     // The two trailing nulls end 300 s and 0 s before asOf, inside the 1800 s allowance.
     expect(data.signals).toEqual([
@@ -2172,6 +2203,45 @@ describe('status collection contract', () => {
       { source: 'ping-slash24', unit: 'Up /24s', coverage: 'no_data', series: [] },
       { source: 'merit-nt', unit: 'Unique Source IPs', coverage: 'no_data', series: [] },
     ]);
+  });
+  it('treats completed Merit batch lag as recent and excludes the open bucket', async () => {
+    const asOf = 1793867947;
+    vi.setSystemTime(asOf * 1000);
+    const merit = {
+      ...entityInput,
+      datasource: 'merit-nt',
+      from: 1793856900,
+      until: 1793868000,
+      step: 300,
+      nativeStep: 300,
+      values: [...Array(29).fill(1), ...Array(8).fill(null)],
+    };
+    network((url) =>
+      envelope(
+        url.pathname.startsWith('/v2/signals/raw/')
+          ? [url.searchParams.get('datasource') === 'merit-nt' ? [merit] : []]
+          : [],
+      ),
+    );
+    const pending = runToolContract(getStatus, { ...entityInput, lookbackHours: 3 });
+    await vi.advanceTimersByTimeAsync(9000);
+    const data = parity(await pending);
+    expect(data.asOf).toBe(asOf);
+    expect(data.signals).toContainEqual(
+      expect.objectContaining({
+        source: 'merit-nt',
+        coverage: 'recent',
+        series: [
+          expect.objectContaining({
+            coverage: 'recent',
+            nonNullCount: 28,
+            nullCount: 0,
+            pendingCount: 7,
+            latest: expect.objectContaining({ bucketUntil: 1793865600 }),
+          }),
+        ],
+      }),
+    );
   });
 });
 

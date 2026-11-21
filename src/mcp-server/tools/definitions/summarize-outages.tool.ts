@@ -37,6 +37,7 @@ import {
   SERVED_CAPS,
   scopeInputs,
   unknownCodeNotice,
+  unknownExclusionNotice,
   unknownScopeNotice,
   validateWindow,
   windowInputs,
@@ -201,6 +202,7 @@ export const summarizeOutages = tool('ioda_summarize_outages', {
         [
           limit.notice,
           extend.notice,
+          unknownExclusionNotice(ignoreMethods),
           relatedMembershipNotice('ioda_summarize_outages', request),
           placeholderRegionNotice(result.summaries.map((summary) => summary.entity)),
           empty && input.page > 0 && emptyPageNotice('ioda_summarize_outages'),

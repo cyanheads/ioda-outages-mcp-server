@@ -5,10 +5,15 @@
 import { describe, expect, it } from 'vitest';
 import {
   assessDetection,
-  PUBLICATION_ALLOWANCE_SECONDS,
   sourceCoverage,
-  summarizeSeries,
+  summarizeSeries as summarize,
 } from '../../src/services/ioda/status.js';
+
+const summarizeSeries = (
+  series: Parameters<typeof summarize>[0],
+  window: Parameters<typeof summarize>[1],
+  asOf: number,
+) => summarize(series, window, asOf, 1800);
 
 const series = {
   entityType: 'country',
@@ -42,8 +47,7 @@ describe('completed buckets', () => {
       maximum: 0,
     });
   });
-  it('uses one inclusive 1800-second publication allowance for freshness', () => {
-    expect(PUBLICATION_ALLOWANCE_SECONDS).toBe(1800);
+  it('applies an inclusive 1800-second publication allowance for freshness', () => {
     const input = { ...series, until: 1200, values: [0] };
     expect(summarizeSeries(input, { from: 900, until: 3000 }, 3000).coverage).toBe('recent');
     expect(summarizeSeries(input, { from: 900, until: 3000 }, 3001).coverage).toBe('stale');
@@ -261,6 +265,22 @@ describe('publication allowance', () => {
       expect(summarizeSeries(input, { from: asOf - lookback, until: asOf }, asOf)).toMatchObject({
         coverage,
         nonNullCount,
+        nullCount,
+        pendingCount,
+      });
+    },
+  );
+  it.each([
+    [12600, 'recent', 1, 1],
+    [12601, 'stale', 1, 1],
+    [12901, 'stale', 2, 0],
+  ] as const)(
+    'applies the Merit allowance at asOf %i',
+    (asOf, coverage, nullCount, pendingCount) => {
+      const input = { ...series, datasource: 'merit-nt', values: [1, null, 2, null] };
+      expect(summarize(input, { from: 900, until: 2100 }, asOf, 10800)).toMatchObject({
+        coverage,
+        nonNullCount: 2,
         nullCount,
         pendingCount,
       });

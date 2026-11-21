@@ -7,7 +7,7 @@ import { JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
 import {
   getIodaService,
   NumericSourceSchema,
-  PUBLICATION_ALLOWANCE_SECONDS,
+  STATUS_PUBLICATION_ALLOWANCES,
   STATUS_REQUESTS,
   StatusEvidenceSchema,
 } from '@/services/ioda/index.js';
@@ -26,7 +26,7 @@ import {
   requiredEntity,
 } from '../ioda-common.js';
 export const getStatus = tool('ioda_get_status', {
-  description: `Inspect recent IODA detection evidence and measurement coverage for one entity over a lookback of 1–24 hours. Collect events, alerts, bgp, ping-slash24 and merit-nt evidence. Partial failures remain explicit and route to standalone tools. recent, stale, no_data and unknown describe observation availability; buckets within the ${PUBLICATION_ALLOWANCE_SECONDS}-second publication allowance count as pending, not missing. No alerts is not an all-clear. IODA measures macroscopic connectivity, not one office or a shutdown cause.`,
+  description: `Inspect recent IODA detection evidence and measurement coverage for one entity over a lookback of 1–24 hours. Collect events, alerts, bgp, ping-slash24 and merit-nt evidence. Partial failures remain explicit and route to standalone tools. recent, stale, no_data and unknown describe observation availability. Completed trailing nulls count as pending when they ended within the source's publication allowance of the call (${STATUS_PUBLICATION_ALLOWANCES.bgp} seconds for bgp and ping-slash24, ${STATUS_PUBLICATION_ALLOWANCES['merit-nt']} for merit-nt). No alerts is not an all-clear. IODA measures macroscopic connectivity, not one office or a shutdown cause.`,
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: true },
   input: z.object({
     ...entityInputs,
@@ -117,7 +117,9 @@ export const getStatus = tool('ioda_get_status', {
       signals: {
         sources: NumericSourceSchema.options,
         ...STATUS_REQUESTS.signals,
-        publicationAllowanceSeconds: PUBLICATION_ALLOWANCE_SECONDS,
+        // Keep the original scalar for clients that read it.
+        publicationAllowanceSeconds: 1800,
+        publicationAllowances: STATUS_PUBLICATION_ALLOWANCES,
       },
     };
     // A failed component returned nothing either, as when the service decides an unknown code.

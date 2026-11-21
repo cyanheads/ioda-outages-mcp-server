@@ -61,7 +61,7 @@ Internet outage evidence from [IODA](https://ioda.inetintel.cc.gatech.edu/), usi
 ### `ioda_get_status` <sub>tool</sub>
 
 - Required `entityType` (`country`, `region`, `asn`, or `geoasn`) and `entityCode`; `lookbackHours` is at least 1, default 6, served at most 24 with a notice naming the uncovered earlier window. Collects events, alerts, and `bgp`, `ping-slash24`, and `merit-nt` summaries within the returned `window`.
-- `detection` is `observed`, `none_returned`, or `unknown`; source `coverage` is independently `recent`, `stale`, `no_data`, or `unknown`. `recent` means the latest completed observation ended within a 1,800-second publication allowance of the call, the same for all three sources, a server policy rather than an upstream SLA. Trailing nulls inside the allowance count as `pendingCount`, not `nullCount`.
+- `detection` is `observed`, `none_returned`, or `unknown`; source `coverage` is independently `recent`, `stale`, `no_data`, or `unknown`. `recent` means the latest completed native observation ended within the source's publication allowance, inclusive. Trailing completed null buckets within that allowance count as `pendingCount`. `applied.signals.publicationAllowances` gives the policy in seconds: 1,800 for `bgp` and `ping-slash24`, 10,800 for `merit-nt`. The legacy `applied.signals.publicationAllowanceSeconds` stays at 1,800 for older readers.
 - Each `signals` entry carries IODA's `unit` for its source (`Visible /24s`, `Up /24s`, `Unique Source IPs`); `latest`, `minimum`, and `maximum` are in that unit.
 - `components` disclose partial failures and standalone-tool recovery. Event/alert pages carry continuation metadata; raw samples come from `ioda_get_signals`. All-component failure fails the call; an unknown country, region, or geoasn code fails with `entity_not_found`. IODA answers an unknown `asn` code with a placeholder instead; when no event, alert, or series came back for an `asn`, a notice says a returned `ioda_search_entities` row does not confirm IODA holds data for it.
 
@@ -70,7 +70,8 @@ Internet outage evidence from [IODA](https://ioda.inetintel.cc.gatech.edu/), usi
 ### `ioda_find_outages` <sub>tool</sub>
 
 - Required `from` and `until`; optional `entityType` (`country`, `region`, `asn`, or `geoasn`), `entityCode`, and `source: bgp | ping-slash24 | merit-nt | gtr`. Omit entity filters for global scope; a code requires its type. Optional `relatedToType` and `relatedToCode` limit results to `entityType` entities within one country, region, ASN, or geoasn (both or neither, `entityType` required, no `entityCode`). `limit` is at least 1, default 20, served at most 1,000.
-- Returns source `events`, `pagination`, and `provenance`. Scores retain their source meaning; starts may precede the window and an end clipped at `until` does not establish recovery.
+- `order` defaults to `time_asc` (oldest start first). Use `time_desc` for newest starts or `score_desc` for highest raw event scores. Use `source` with `score_desc` to compare events on one score scale. IODA orders the events it evaluated before paging and the response echoes `applied.order`, including on empty pages. Keep it fixed across pages.
+- Returns source `events`, `pagination`, and `provenance`. Starts may precede the window and an end clipped at `until` does not establish recovery.
 - `includeAlerts` defaults to false; `extendWindowSeconds` is at least 0, served at most 1,209,600. Omitted, it is 1,209,600 with `entityType` and 86,400 without it, because large global extensions can time out; the applied value is echoed, and a notice discloses the global default. Global searches over multi-day windows can still time out: narrow the window or add `entityType`. Zero extension can miss long-running detections.
 
 ---
@@ -112,8 +113,8 @@ IODA-specific:
 
 - Keyless reads from a fixed HTTPS API origin; no local database or native helper.
 - Historical windows use integer Unix seconds UTC: `from < until <= now`, at most 31 days. Alerts include transitions at both bounds (widened by extension); events and summaries include starts at `until`. Adjacent windows can duplicate boundary detections. Signal bounds describe aligned buckets; status echoes the requested window across components with different selection rules. IODA's API holds no outage detections before 2022-01-26 UTC and no `merit-nt`, `bgp`, or `ping-slash24` observations before 2022-01-09, 2022-01-18, and 2022-02-02 (`gtr` has no start); an empty result for a window ending by then says so instead of suggesting another code or a wider window.
-- `ignoreMethods: string[]` on events, alerts, and rankings excludes detections upstream before event construction and scoring: `source.method`, `source.*`, or `*.method`, with sources `bgp`, `ping-slash24`, `merit-nt`, and `gtr`. Case/whitespace normalize and duplicates collapse; an empty array excludes nothing. Malformed terms and `*.*` fail `invalid_arguments`; an explicit `source` plus its own `source.*` fails `invalid_ignore_methods`. Keep exclusions fixed across pages and ranking drill-downs; provider scores and order are preserved.
-- Every related-scope outage response warns that membership coverage is unverified, even on short or empty pages. Page `ioda_search_entities` with the same entity type, scope, and limit, then query selected codes individually with the original window, source/exclusions, extension, and paging limit; each response supplies the concrete calls. `pagination.more` describes row pages, not scope completeness.
+- `ignoreMethods: string[]` on events, alerts, and rankings excludes detections upstream before event construction and scoring: `source.method`, `source.*`, or `*.method`, with sources `bgp`, `ping-slash24`, `merit-nt`, and `gtr`. Case/whitespace normalize and duplicates collapse; an empty array excludes nothing. Known pairs are `bgp.median`, `ping-slash24.median`, `merit-nt.median`, and `gtr.sarima`. Well-formed exclusions that match none of those pairs are forwarded and echoed in `applied.ignoreMethods`, with a notice naming them as unlikely to exclude detections. Malformed terms and `*.*` fail `invalid_arguments`; an explicit `source` plus its own `source.*` fails `invalid_ignore_methods`. Keep exclusions fixed across pages and ranking drill-downs; provider scores and order are preserved.
+- Every related-scope outage response warns that membership coverage is unverified, even on short or empty pages. Page `ioda_search_entities` with the same entity type, scope, and limit, then query selected codes individually with the original window, source/exclusions, event order, extension, and paging limit; each response supplies the concrete calls. `pagination.more` describes row pages, not scope completeness.
 - Pagination is zero-based; follow `nextPage` with filters and `limit` unchanged. `more: "possible"` signals possible continuation, not a known total; restart at page 0 after changing the limit.
 - Numeric inputs have no advertised maximum: a larger `limit` (cap 1,000), `maxPoints` (10,000), `lookbackHours` (24), or `extendWindowSeconds` (1,209,600) is served at the cap, and a notice names the requested value, the served value, and the route to the rest. Minimums and non-integers fail argument validation. With `IODA_CLAMP_LIMITS=false`, each cap is the schema maximum and a larger value fails `invalid_arguments`.
 - Shared request pacing allows one in-flight request and at least two seconds between starts, with a 45-second invocation deadline. Avoid concurrent investigations.
@@ -164,11 +165,12 @@ One server-specific variable, then the common framework variables:
 | `MCP_TRANSPORT_TYPE` | Transport: `stdio` or `http`. | `stdio` |
 | `MCP_HTTP_HOST` | HTTP bind address. | `127.0.0.1` |
 | `MCP_HTTP_PORT` | HTTP server port. | `3010` |
-| `MCP_HTTP_ENDPOINT_PATH` | MCP endpoint path. | `/mcp` |
+| `MCP_HTTP_ENDPOINT_PATH` | Literal MCP route path, with no route patterns, query, or fragment. | `/mcp` |
+| `MCP_PUBLIC_URL` | Public HTTP(S) base URL, with an optional path prefix. Omit credentials, query, and fragment. | — |
 | `MCP_SESSION_MODE` | HTTP session mode: `stateless`, `stateful`, or `auto`. | `stateless` |
 | `MCP_AUTH_MODE` | Authentication: `none`, `jwt`, or `oauth`. | `none` |
 | `MCP_LOG_LEVEL` | Log level (`debug`, `info`, `warning`, `error`, etc.). | `info` |
-| `LOGS_DIR` | Directory for log files (Node.js only). | `<app-root>/logs` |
+| `LOGS_DIR` | Directory for log files (Node.js only). Relative paths resolve from the server package. | `<app-root>/logs` |
 | `OTEL_ENABLED` | Enable [OpenTelemetry](https://github.com/cyanheads/mcp-ts-core/tree/main/docs/telemetry). | `false` |
 
 See [`.env.example`](./.env.example) for the full list of framework overrides.
@@ -177,7 +179,7 @@ See [`.env.example`](./.env.example) for the full list of framework overrides.
 
 ### Local development
 
-Requires [Bun v1.4.0](https://bun.sh/) or higher (or Node.js v24+).
+Requires [Bun v1.4.4](https://bun.sh/) or higher (or Node.js v24+).
 
 - **Clone and install:**
 

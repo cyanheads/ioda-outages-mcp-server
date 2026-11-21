@@ -148,6 +148,56 @@ describe('endpoint-specific boundary guidance', () => {
 });
 
 describe('upstream exclusion contract', () => {
+  it.each(tools)(
+    '%s warns about unknown exclusions without dropping them or replacing page notices',
+    async (tool, endpoint) => {
+      const row = captures[`issue-15/probe-${endpoint}-None` as Capture][0];
+      network((url) => (url.searchParams.get('page') === '0' ? [row] : []));
+      for (const page of [0, 1]) {
+        if (page) await vi.advanceTimersByTimeAsync(2000);
+        const data = parity(
+          await runToolContract(tool, {
+            ...window,
+            entityType: 'country',
+            ignoreMethods: [' GTR.SARMA ', 'gtr.median', '*.sarma', 'gtr.sarma', '*.MEDIAN'],
+            limit: 1,
+            page,
+          }),
+        );
+        const expected = ['gtr.sarma', 'gtr.median', '*.sarma', '*.median'];
+        expect(calls.at(-1)?.searchParams.get('ignoreMethods')).toBe(expected.join(','));
+        expect(data.applied).toMatchObject({ ignoreMethods: expected });
+        expect(data[endpoint === 'summary' ? 'summaries' : endpoint]).toEqual(page ? [] : [row]);
+        expect(data.notice).toContain('gtr.sarma, gtr.median, *.sarma');
+        expect(data.notice).toContain(
+          'bgp.median, ping-slash24.median, merit-nt.median, gtr.sarima',
+        );
+        expect(data.notice).toContain(page ? 'This page is empty' : 'nextPage');
+      }
+    },
+  );
+  it.each(tools)('%s leaves every known exact pair and wildcard unflagged', async (tool) => {
+    network(() => []);
+    const data = parity(
+      await runToolContract(tool, {
+        ...window,
+        entityType: 'country',
+        ignoreMethods: [
+          'bgp.median',
+          'ping-slash24.median',
+          'merit-nt.median',
+          'gtr.sarima',
+          'bgp.*',
+          'ping-slash24.*',
+          'merit-nt.*',
+          'gtr.*',
+          '*.median',
+          '*.sarima',
+        ],
+      }),
+    );
+    expect(data.notice).not.toContain('known IODA detection methods');
+  });
   it.each([
     [undefined, 'None', 34, 'LT', 827416.0941834522],
     [['gtr.*'], 'gtr.STAR', 31, 'GU', 189542.77286135696],
@@ -346,6 +396,105 @@ describe('upstream exclusion contract', () => {
       expect(calls).toHaveLength(4);
     },
   );
+});
+
+describe('event order', () => {
+  const entity = { type: 'asn', code: '7922', name: 'COMCAST-7922' };
+  const nested = { entity, time: window.from, datasource: 'bgp', level: 'critical', value: 0 };
+  const events = [
+    { entity, from: window.from + 500, until: window.until, score: 5, alerts: [nested] },
+    { entity, from: window.from + 800, until: window.until, score: 2, alerts: [nested] },
+    { entity, from: window.from + 900, until: window.until, score: 5 },
+    { entity, from: window.from + 1000, until: window.until, score: 1 },
+  ] as const;
+  it('advertises a three-value order enum with an optional oldest-first default', () => {
+    const schema = z.toJSONSchema(findOutages.input, { io: 'input' });
+    expect(schema.properties?.order).toMatchObject({
+      enum: ['time_asc', 'time_desc', 'score_desc'],
+      default: 'time_asc',
+    });
+    expect(schema.required).not.toContain('order');
+  });
+  it.each([
+    [undefined, 'time_asc', 'time/asc', events],
+    ['time_asc', 'time_asc', 'time/asc', events],
+    ['time_desc', 'time_desc', 'time/desc', [events[3], events[2], events[1], events[0]]],
+    ['score_desc', 'score_desc', 'score/desc', [events[2], events[0], events[1], events[3]]],
+  ] as const)(
+    'sends %s before pagination and preserves related recovery',
+    async (order, applied, upstream, rows) => {
+      network((url) => {
+        const limit = Number(url.searchParams.get('limit'));
+        const offset = Number(url.searchParams.get('page')) * limit;
+        return rows.slice(offset, offset + limit);
+      });
+      for (const [page, returned] of [
+        [0, [rows[0], rows[1]]],
+        [1, [rows[2], rows[3]]],
+        [2, []],
+      ] as const) {
+        if (page) await vi.advanceTimersByTimeAsync(2000);
+        const data = parity(
+          await runToolContract(findOutages, {
+            ...window,
+            entityType: 'asn',
+            relatedToType: 'country',
+            relatedToCode: 'US',
+            source: 'bgp',
+            includeAlerts: true,
+            extendWindowSeconds: 0,
+            limit: 2,
+            page,
+            ...(order && { order }),
+          }),
+        );
+        expect(Object.fromEntries(calls.at(-1)?.searchParams ?? [])).toMatchObject({
+          orderBy: upstream,
+          datasource: 'bgp',
+          relatedTo: 'country/US',
+          includeAlerts: 'true',
+          page: String(page),
+          limit: '2',
+        });
+        expect(data.applied).toMatchObject({ order: applied, page, limit: 2 });
+        expect(data.events).toEqual(returned);
+        expect(data.pagination).toEqual({
+          page,
+          limit: 2,
+          returned: returned.length,
+          more: page < 2 ? 'possible' : 'no',
+          ...(page < 2 && { nextPage: page + 1 }),
+        });
+        expect(data.notice).toContain('Membership coverage is unverified');
+        expect(data.notice).toContain(`"order":"${applied}"`);
+      }
+    },
+  );
+  it('serves a capped first page of score order without requiring source', async () => {
+    network(() => Array.from({ length: 1000 }, () => events[0]));
+    const data = parity(
+      await runToolContract(findOutages, {
+        ...window,
+        order: 'score_desc',
+        limit: 1001,
+      }),
+    );
+    expect(calls[0]?.searchParams.get('orderBy')).toBe('score/desc');
+    expect(calls[0]?.searchParams.get('limit')).toBe('1000');
+    expect(calls[0]?.searchParams.has('datasource')).toBe(false);
+    expect(data.applied).toMatchObject({ order: 'score_desc', limit: 1000 });
+    expect(data.truncated).toEqual({ shown: 1000, cap: 1000 });
+    expect(data.notice).toContain('nextPage');
+  });
+  it('rejects unsupported upstream order syntax during input validation', async () => {
+    network(() => []);
+    const result = await runToolContract(findOutages, { ...window, order: 'time/desc' } as never);
+    expect(result.structuredContent).toMatchObject({
+      error: { code: JsonRpcErrorCode.InvalidParams, data: { reason: 'invalid_arguments' } },
+    });
+    expect(rendered(result)).toContain('time_desc');
+    expect(calls).toHaveLength(0);
+  });
 });
 
 describe('unverified related membership', () => {

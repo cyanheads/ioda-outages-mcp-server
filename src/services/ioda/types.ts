@@ -8,6 +8,7 @@ import type {
   EntityReference,
   EntityType,
   Event,
+  EventOrder,
   NumericSeries,
   Pagination,
   Provenance,
@@ -49,6 +50,7 @@ export interface EventRequest extends PageRequest, EntityFilter, ScopeFilter, Ti
   extendWindowSeconds: number;
   ignoreMethods?: string[];
   includeAlerts: boolean;
+  order?: EventOrder;
   source?: Source;
 }
 /** Canonical alert request. */

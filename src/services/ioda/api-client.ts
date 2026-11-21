@@ -5,7 +5,13 @@
 import { type Context, z } from '@cyanheads/mcp-ts-core';
 import { JsonRpcErrorCode, McpError } from '@cyanheads/mcp-ts-core/errors';
 import { createPacer, httpStatusToErrorCode, withRetry } from '@cyanheads/mcp-ts-core/utils';
-import { cancelledError, type IodaReason, type IodaTool, iodaError } from './errors.js';
+import {
+  cancelledError,
+  type IodaReason,
+  type IodaTool,
+  iodaError,
+  transportCause,
+} from './errors.js';
 import type { Provenance } from './schemas.js';
 import type { IodaDependencies, RequestBudget } from './types.js';
 
@@ -195,12 +201,13 @@ export class IodaApiClient {
             'ioda-outages-mcp-server (+https://github.com/cyanheads/ioda-outages-mcp-server)',
         },
       });
-    } catch {
+    } catch (error) {
       throw iodaError(
         JsonRpcErrorCode.ServiceUnavailable,
         'upstream_unavailable',
         'IODA network request failed.',
         tool,
+        { cause: transportCause(error) },
       );
     }
     if (!response.ok) {
@@ -233,6 +240,7 @@ export class IodaApiClient {
         'upstream_unavailable',
         'IODA response stream failed.',
         tool,
+        { cause: transportCause(error) },
       );
     }
     if (/^\s*<(?:!doctype\s+html|html[\s>])/i.test(text))

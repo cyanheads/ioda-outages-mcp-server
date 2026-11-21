@@ -9,7 +9,7 @@ import {
   type NumericSeries,
   NumericSeriesSchema,
   ProvenanceSchema,
-  PUBLICATION_ALLOWANCE_SECONDS,
+  PUBLICATION_ALLOWANCES,
   SIGNAL_UNITS,
   type SignalRequest,
   type SignalSource,
@@ -72,18 +72,6 @@ const semantics = {
   },
 } satisfies Record<SignalSource, { measurement: string; caveat: string }>;
 const missingData = 'Missing data does not establish healthy connectivity.';
-/**
- * How long after a bucket ends IODA may still publish it. bgp and ping-slash24 share
- * ioda_get_status's allowance. merit-nt and gtr publish in batches: in reads on 2026-11-01
- * merit-nt's newest bucket was 620 s, 3,056 s, and over 7,200 s old within ten minutes, and gtr's
- * 3,957–5,757 s, so both take an allowance above every lag measured.
- */
-const PUBLICATION_ALLOWANCES = {
-  bgp: PUBLICATION_ALLOWANCE_SECONDS,
-  'ping-slash24': PUBLICATION_ALLOWANCE_SECONDS,
-  'merit-nt': 10800,
-  gtr: 10800,
-} as const satisfies Record<SignalSource, number>;
 /**
  * Guidance for a call that returned no series; the first matching case wins. IODA serves gtr for
  * countries only and gives it no archive start. A core-source window ending by its archive start

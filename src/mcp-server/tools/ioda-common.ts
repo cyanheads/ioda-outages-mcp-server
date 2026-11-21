@@ -172,7 +172,7 @@ export const ignoreMethodsInput = z
   )
   .optional()
   .describe(
-    'Detection methods to exclude upstream before event construction and scoring; duplicates are removed, and an empty array excludes nothing. Keep fixed across ranking and drill-down calls.',
+    'Detection methods to exclude upstream before event construction and scoring; duplicates are removed, and an empty array excludes nothing. Exclusions that match no known detection method are forwarded with a notice. Keep fixed across ranking and drill-down calls.',
   );
 /** An optional scope listing entityType entities related to one other entity. */
 export const scopeInputs = {
@@ -414,6 +414,27 @@ export function ignoredMethods(
     });
   return methods;
 }
+/** Known upstream pairs used for advice only. IODA may recognize additional methods. */
+const knownDetectionMethods = {
+  bgp: 'median',
+  'ping-slash24': 'median',
+  'merit-nt': 'median',
+  gtr: 'sarima',
+} as const satisfies Record<Source, string>;
+const knownDetectionPairs = Object.entries(knownDetectionMethods);
+const knownMethodExclusions = new Set(
+  knownDetectionPairs.flatMap(([source, method]) => [
+    `${source}.${method}`,
+    `${source}.*`,
+    `*.${method}`,
+  ]),
+);
+/** Flag normalized exclusions that have no known IODA match, independent of returned rows. */
+export function unknownExclusionNotice(methods: string[] | undefined): string | undefined {
+  const unknown = methods?.filter((method) => !knownMethodExclusions.has(method));
+  if (!unknown?.length) return;
+  return `ignoreMethods entries ${unknown.join(', ')} match no known IODA detection methods and are unlikely to exclude any detections. Known pairs are ${knownDetectionPairs.map(([source, method]) => `${source}.${method}`).join(', ')}. Use an exact pair, source.* for a whole source, or *.method across sources.`;
+}
 /** Millisecond timestamps have exceeded this since 1973; Unix seconds reach it in year 5138. */
 const MILLISECOND_BOUND = 100_000_000_000;
 const MAX_WINDOW_SECONDS = 31 * 86400;
@@ -443,8 +464,11 @@ interface Served {
   notice?: string;
   value: number;
 }
-/** Created on first use: a counter made at import binds to the no-op meter OTel starts with. */
-let clampCounter: ReturnType<typeof createCounter> | undefined;
+const clampCounter = createCounter(
+  'ioda.input.clamps',
+  'Over-cap inputs served at their cap',
+  '{clamps}',
+);
 /**
  * Serve an over-cap read at its cap, naming requested, served, and the route to the rest. Each
  * clamp writes one log line and one count labelled by tool and input; the requested value is
@@ -460,11 +484,6 @@ function serve(
   const cap = SERVED_CAPS[name];
   if (requested <= cap) return { value: requested };
   ctx.log.info(`Served ${name} at its cap`, { tool, input: name, requested, served: cap });
-  clampCounter ??= createCounter(
-    'ioda.input.clamps',
-    'Over-cap inputs served at their cap',
-    '{clamps}',
-  );
   clampCounter.add(1, { [ATTR_MCP_TOOL_NAME]: tool, 'ioda.input.name': name });
   return {
     value: cap,

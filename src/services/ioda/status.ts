@@ -7,22 +7,34 @@ import type {
   Coverage,
   Event,
   NumericSeries,
+  NumericSource,
   SeriesSummary,
+  SignalSource,
   TimeWindow,
 } from './schemas.js';
 
 /**
- * How long after a bucket ends IODA may still publish it, for every core source. A trailing
- * null within it is pending rather than missing, and a latest observation within it is recent.
- * Server policy measured against observed lag, not an upstream SLA.
+ * How long after a completed bucket ends it may still be published. Merit and GTR publish in
+ * batches. These allowances reflect observed lag and are server policy.
  */
-export const PUBLICATION_ALLOWANCE_SECONDS = 1800;
+export const STATUS_PUBLICATION_ALLOWANCES = {
+  bgp: 1800,
+  'ping-slash24': 1800,
+  'merit-nt': 10800,
+} as const satisfies Record<NumericSource, number>;
+
+/** Publication allowances for every source served by ioda_get_signals. */
+export const PUBLICATION_ALLOWANCES = {
+  ...STATUS_PUBLICATION_ALLOWANCES,
+  gtr: 10800,
+} as const satisfies Record<SignalSource, number>;
 
 /** Summarize completed buckets without inferring replacement intervals or health. */
 export function summarizeSeries(
   series: NumericSeries,
   window: TimeWindow,
   asOf: number,
+  allowanceSeconds: number,
 ): SeriesSummary {
   const { values, ...metadata } = series;
   const eligible = values.flatMap((value, index) => {
@@ -38,7 +50,7 @@ export function summarizeSeries(
   const latest = numeric.at(-1);
   const pendingCount = eligible
     .slice(eligible.findLastIndex((bucket) => bucket.value !== null) + 1)
-    .filter((bucket) => asOf - bucket.bucketUntil <= PUBLICATION_ALLOWANCE_SECONDS).length;
+    .filter((bucket) => asOf - bucket.bucketUntil <= allowanceSeconds).length;
   const nullCount = eligible.length - numeric.length - pendingCount;
   const extrema =
     latest &&
@@ -60,7 +72,7 @@ export function summarizeSeries(
             : 'unknown'
           : series.step !== series.nativeStep
             ? 'unknown'
-            : asOf - latest.bucketUntil <= PUBLICATION_ALLOWANCE_SECONDS
+            : asOf - latest.bucketUntil <= allowanceSeconds
               ? 'recent'
               : 'stale';
   return {

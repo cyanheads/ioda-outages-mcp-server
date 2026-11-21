@@ -3,7 +3,6 @@
  * @module services/ioda/schemas
  */
 import { z } from '@cyanheads/mcp-ts-core';
-import { PUBLICATION_ALLOWANCE_SECONDS } from './status.js';
 
 /** Supported entity vocabulary; a geoasn is one ASN's footprint within a region or country. */
 export const EntityTypeSchema = z.enum(['country', 'region', 'asn', 'geoasn']);
@@ -45,6 +44,8 @@ export const UnitSchema = z.enum(SOURCE_UNITS).describe(unitDescription);
 export const SignalUnitSchema = z.enum(SIGNAL_UNITS).describe(unitDescription);
 /** Event and alert source filters. */
 export const SourceSchema = z.enum(['bgp', 'ping-slash24', 'merit-nt', 'gtr']);
+/** Sort orders for standalone event pages. */
+export const EventOrderSchema = z.enum(['time_asc', 'time_desc', 'score_desc']);
 const extras = z.json();
 /** Upstream entity metadata; metadata does not establish coverage. */
 export const EntitySchema = z
@@ -224,7 +225,7 @@ export const SeriesSummarySchema = NumericSeriesSchema.omit({ values: true })
   .strip()
   .extend({
     coverage: CoverageSchema.describe(
-      `Observation availability, never health: recent when the latest completed observation ended within the ${PUBLICATION_ALLOWANCE_SECONDS}-second publication allowance of asOf, stale beyond it; no_data for an empty series or one with no observation and a missing bucket; unknown for coarse aggregates, no completed bucket, or only pending buckets`,
+      "Observation availability, never health: recent when the latest completed observation ended within the source's publication allowance of asOf, stale beyond it; no_data for an empty series or one with no observation and a missing bucket; unknown for coarse aggregates, no completed bucket, or only pending buckets",
     ),
     nonNullCount: z.number().int().nonnegative().describe('Completed in-window numeric buckets'),
     nullCount: z
@@ -232,14 +233,14 @@ export const SeriesSummarySchema = NumericSeriesSchema.omit({ values: true })
       .int()
       .nonnegative()
       .describe(
-        `Completed in-window missing buckets: interior gaps and trailing nulls that ended more than ${PUBLICATION_ALLOWANCE_SECONDS} seconds before asOf`,
+        "Completed in-window missing buckets: interior gaps and trailing nulls that ended before the source's publication allowance relative to asOf",
       ),
     pendingCount: z
       .number()
       .int()
       .nonnegative()
       .describe(
-        `Completed in-window null buckets after the latest observation that ended within ${PUBLICATION_ALLOWANCE_SECONDS} seconds of asOf; not yet due, not a promise they will be published`,
+        "Completed in-window trailing null buckets that ended within the source's publication allowance of asOf; pending buckets may still go unpublished",
       ),
     latest: z
       .object({
@@ -312,6 +313,8 @@ export const StatusEvidenceSchema = z.object({
 });
 /** Canonical entity type. */
 export type EntityType = z.infer<typeof EntityTypeSchema>;
+/** Order of a standalone event page. */
+export type EventOrder = z.infer<typeof EventOrderSchema>;
 /** Core numeric source. */
 export type NumericSource = z.infer<typeof NumericSourceSchema>;
 /** ioda_get_signals source: a core source or gtr. */

@@ -4,6 +4,7 @@
  */
 import { JsonRpcErrorCode, McpError } from '@cyanheads/mcp-ts-core/errors';
 import { createMockContext } from '@cyanheads/mcp-ts-core/testing';
+import { ErrorHandler, logger } from '@cyanheads/mcp-ts-core/utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { recoveryFor } from '../../src/services/ioda/errors.js';
 import { IodaService } from '../../src/services/ioda/ioda-service.js';
@@ -72,6 +73,84 @@ async function settle<T>(pending: Promise<T>) {
 }
 describe('network seam', () => {
   it.each([
+    ['fetch', 'ECONNREFUSED', 'Connection refused', 'ECONNREFUSED'],
+    ['body', 'UND_ERR_SOCKET', 'Socket closed', 'UND_ERR_SOCKET'],
+    ['body', undefined, 'TLS certificate expired', 'TLS failure'],
+    ['body', undefined, 'Proxy CONNECT rejected', 'Proxy failure'],
+  ] as const)(
+    'keeps safe diagnostics for a failed %s (%s) through retry exhaustion',
+    async (phase, code, reason, diagnostic) => {
+      const retryLog = vi.spyOn(logger, 'debug').mockImplementation(() => {});
+      const failureLog = vi.spyOn(logger, 'error').mockImplementation(() => {});
+      try {
+        const fetcher = vi.fn(async () => {
+          const socket = Object.assign(
+            new Error(
+              `${reason} for http://username-sentinel:password-sentinel@proxy.invalid/path-sentinel?token=query-sentinel`,
+            ),
+            { code },
+          );
+          const wrapper = Object.assign(new Error('OPAQUE_MESSAGE_SENTINEL'), {
+            code: 'OPAQUE_CODE_SENTINEL',
+          });
+          const dns = Object.assign(new Error('getaddrinfo host-sentinel'), { code: 'ENOTFOUND' });
+          const cause =
+            phase === 'fetch'
+              ? new AggregateError([socket, dns, socket], 'aggregate-sentinel', { cause: wrapper })
+              : wrapper;
+          const error = new TypeError('fetch failed, api_key=key-sentinel', { cause });
+          wrapper.cause = phase === 'fetch' ? error : socket;
+          if (phase === 'fetch') throw error;
+          return new Response(
+            new ReadableStream({ start: (controller) => controller.error(error) }),
+          );
+        });
+        const outcome = await settle(
+          service(fetcher).searchEntities(input, createMockContext(), budget()),
+        );
+        expect(fetcher).toHaveBeenCalledTimes(2);
+        expect(outcome).toHaveProperty('error');
+        if (!('error' in outcome)) throw new Error('Expected upstream failure');
+        expect(outcome.error).toMatchObject({
+          code: JsonRpcErrorCode.ServiceUnavailable,
+          data: {
+            retryAttempts: 2,
+            reason: 'upstream_unavailable',
+            recovery: {
+              hint: 'Retry ioda_search_entities later after the public upstream service recovers.',
+            },
+          },
+        });
+        ErrorHandler.handleError(outcome.error, {
+          operation: 'ioda_search_entities',
+          includeStack: false,
+        });
+        const retry = retryLog.mock.calls.find(([message]) => message.startsWith('Retry 1/1'));
+        const node = expect.objectContaining({
+          message: diagnostic,
+          ...(code && { code }),
+        });
+        const retryContext = retry?.[1];
+        const retryChain =
+          retryContext instanceof Error ? undefined : retryContext?.extra?.causeChain;
+        expect(retryChain).toEqual(expect.arrayContaining([node]));
+        const failureContext = failureLog.mock.calls[0]?.[1];
+        expect(
+          failureContext instanceof Error ? undefined : failureContext?.extra?.errorData,
+        ).toMatchObject({ causeChain: expect.arrayContaining([node]) });
+        if (phase === 'fetch') {
+          expect(retryChain).toContainEqual(expect.objectContaining({ code: 'ENOTFOUND' }));
+          expect(JSON.stringify(retryChain).match(/"code":"ECONNREFUSED"/g)).toHaveLength(1);
+        }
+        expect(JSON.stringify([retry, failureLog.mock.calls])).not.toMatch(/sentinel/i);
+      } finally {
+        retryLog.mockRestore();
+        failureLog.mockRestore();
+      }
+    },
+  );
+
+  it.each([
     [undefined, null],
     [[], null],
     [['gtr.*', 'bgp.median'], 'gtr.*,bgp.median'],
@@ -125,12 +204,10 @@ describe('network seam', () => {
       includeAlerts: true,
       extendWindowSeconds: 1209600,
     };
-    const result = await service(async () => envelope([event])).getEvents(
-      request,
-      createMockContext(),
-      budget(),
-    );
+    const fetcher = vi.fn(async (_request: URL | string) => envelope([event]));
+    const result = await service(fetcher).getEvents(request, createMockContext(), budget());
     expect(result.events).toEqual([event]);
+    expect(new URL(String(fetcher.mock.calls[0]?.[0])).searchParams.has('orderBy')).toBe(false);
     const alerts = await service(async () => envelope([alert])).getAlerts(
       { from: 1000, until: 2000, page: 0, limit: 1, extendWindowSeconds: 0 },
       createMockContext(),
@@ -899,7 +976,7 @@ describe('status publication allowance', () => {
     values,
   });
   it('names the allowance in the stale limitation and splits overdue from pending buckets', async () => {
-    const asOf = 1792562161;
+    const asOf = 1792569901;
     const fetcher = statusFetch(
       {
         events: empty,
@@ -911,14 +988,18 @@ describe('status publication allowance', () => {
       '/v2/signals/raw/country/US',
     );
     const { value } = (await settle(
-      service(fetcher).getStatusEvidence({ ...us, asOf }, createMockContext(), budget()),
+      service(fetcher).getStatusEvidence(
+        { ...us, lookbackHours: 5, asOf },
+        createMockContext(),
+        budget(),
+      ),
     )) as { value: StatusEvidence };
     const merit = value.signals[2];
     expect(merit?.coverage).toBe('stale');
     expect(merit?.series).toHaveLength(1);
-    expect(merit?.series[0]).toMatchObject({ nonNullCount: 12, nullCount: 5, pendingCount: 6 });
+    expect(merit?.series[0]).toMatchObject({ nonNullCount: 13, nullCount: 1, pendingCount: 11 });
     expect(value.limitations).toContain(
-      'Stale means the latest completed bucket ended more than the 1800-second publication allowance before asOf; this server policy is not an upstream SLA.',
+      "Stale means the time since the latest completed observation exceeds its source's publication allowance. See applied.signals.publicationAllowances for the server policy.",
     );
     expect(value.limitations).not.toContain(alignment);
   });

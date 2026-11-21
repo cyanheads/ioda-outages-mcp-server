@@ -13,7 +13,8 @@ export {
 export * from './schemas.js';
 export {
   assessDetection,
-  PUBLICATION_ALLOWANCE_SECONDS,
+  PUBLICATION_ALLOWANCES,
+  STATUS_PUBLICATION_ALLOWANCES,
   sourceCoverage,
   summarizeSeries,
 } from './status.js';

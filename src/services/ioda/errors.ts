@@ -2,7 +2,61 @@
  * @fileoverview Sanitized IODA service errors and standalone recovery routes.
  * @module services/ioda/errors
  */
+import { constants } from 'node:os';
 import { JsonRpcErrorCode, McpError } from '@cyanheads/mcp-ts-core/errors';
+
+const TRANSPORT_CODES = new Set([
+  ...Object.keys(constants.errno),
+  'EAI_AGAIN',
+  'ENOTFOUND',
+  'CERT_HAS_EXPIRED',
+  'DEPTH_ZERO_SELF_SIGNED_CERT',
+  'ERR_TLS_CERT_ALTNAME_INVALID',
+  'SELF_SIGNED_CERT_IN_CHAIN',
+  'UNABLE_TO_VERIFY_LEAF_SIGNATURE',
+  'UND_ERR_BODY_TIMEOUT',
+  'UND_ERR_CONNECT_TIMEOUT',
+  'UND_ERR_HEADERS_TIMEOUT',
+  'UND_ERR_SOCKET',
+  'ConnectionRefused',
+]);
+const TRANSPORT_CATEGORIES = [
+  [/\b(?:tls|ssl|certificate)\b/i, 'TLS failure'],
+  [
+    /\bproxy (?:connect|authentication|connection|tunnel|request|refused|error|failed)\b/i,
+    'Proxy failure',
+  ],
+  [/\b(?:dns|getaddrinfo|could not resolve)\b/i, 'DNS failure'],
+  [/\bconnection refused\b/i, 'Connection refused'],
+  [
+    /\b(?:socket|broken pipe|terminated|premature close|unexpected eof)\b/i,
+    'Transport interrupted',
+  ],
+] as const;
+
+/** Project runtime codes and fixed categories onto the framework logger's linear cause chain. */
+export function transportCause(error: unknown): Error | undefined {
+  const pending = [error];
+  const seen = new Set<Error>();
+  while (pending.length > 0) {
+    const cause = pending.pop();
+    if (!(cause instanceof Error) || seen.has(cause)) continue;
+    seen.add(cause);
+    if (cause instanceof AggregateError) {
+      for (const member of cause.errors) pending.push(member);
+    }
+    pending.push(cause.cause);
+  }
+  return [...seen].reduceRight<Error | undefined>((cause, original) => {
+    const code =
+      'code' in original && typeof original.code === 'string' && TRANSPORT_CODES.has(original.code)
+        ? original.code
+        : undefined;
+    const category = TRANSPORT_CATEGORIES.find(([pattern]) => pattern.test(original.message))?.[1];
+    const safe = new Error(code ?? category ?? 'Transport error', { cause });
+    return code ? Object.assign(safe, { code }) : safe;
+  }, undefined);
+}
 
 /** A literal calling tool, never caller-supplied text. */
 export type IodaTool =
@@ -66,14 +120,24 @@ export function iodaError(
   reason: IodaReason,
   message: string,
   tool: IodaTool,
-  extra: { retryAfter?: string | number; recovery?: string; status?: number } = {},
+  extra: {
+    retryAfter?: string | number;
+    recovery?: string;
+    status?: number;
+    cause?: Error | undefined;
+  } = {},
 ): McpError {
-  return new McpError(code, message, {
-    reason,
-    recovery: { hint: extra.recovery ?? recoveryFor(reason, tool) },
-    ...(extra.retryAfter !== undefined && { retryAfter: extra.retryAfter }),
-    ...(extra.status !== undefined && { status: extra.status }),
-  });
+  return new McpError(
+    code,
+    message,
+    {
+      reason,
+      recovery: { hint: extra.recovery ?? recoveryFor(reason, tool) },
+      ...(extra.retryAfter !== undefined && { retryAfter: extra.retryAfter }),
+      ...(extra.status !== undefined && { status: extra.status }),
+    },
+    { cause: extra.cause },
+  );
 }
 /** Caller cancellation, distinct from deadline and upstream timeouts. */
 export function cancelledError(tool: IodaTool): McpError {

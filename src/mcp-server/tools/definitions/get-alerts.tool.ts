@@ -35,6 +35,7 @@ import {
   scopeInputs,
   sourceFilter,
   unknownCodeNotice,
+  unknownExclusionNotice,
   unknownScopeNotice,
   validateWindow,
   windowInputs,
@@ -213,6 +214,7 @@ export const getAlerts = tool('ioda_get_alerts', {
         [
           limit.notice,
           extend.notice,
+          unknownExclusionNotice(ignoreMethods),
           relatedMembershipNotice('ioda_get_alerts', request),
           placeholderRegionNotice(result.alerts.map((alert) => alert.entity)),
           empty && input.page > 0 && emptyPageNotice('ioda_get_alerts'),

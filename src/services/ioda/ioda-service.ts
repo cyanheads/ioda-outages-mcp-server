@@ -20,7 +20,7 @@ import {
 } from './schemas.js';
 import {
   assessDetection,
-  PUBLICATION_ALLOWANCE_SECONDS,
+  STATUS_PUBLICATION_ALLOWANCES,
   sourceCoverage,
   summarizeSeries,
 } from './status.js';
@@ -56,6 +56,13 @@ export const STATUS_REQUESTS = {
   alerts: { limit: 100, page: 0, extendWindowSeconds: 0 },
   signals: { maxPoints: 2000 },
 } as const;
+
+/** IODA applies this order to the event set before slicing the requested page. */
+const eventOrderBy = {
+  time_asc: 'time/asc',
+  time_desc: 'time/desc',
+  score_desc: 'score/desc',
+} as const satisfies Record<NonNullable<EventRequest['order']>, string>;
 
 type StatusComponent = StatusEvidence['components'][number];
 
@@ -168,7 +175,7 @@ export class IodaService {
     };
   }
 
-  /** Fetch one original event page without merging or ranking source scores. */
+  /** Fetch one page of unmerged events in the requested upstream order. */
   async getEvents(input: EventRequest, ctx: Context, budget: RequestBudget): Promise<EventResult> {
     const result = await this.client.request(
       '/outages/events',
@@ -184,6 +191,7 @@ export class IodaService {
         extendWindow: input.extendWindowSeconds,
         format: 'ioda',
         overall: false,
+        orderBy: input.order && eventOrderBy[input.order],
         limit: input.limit,
         page: input.page,
       },
@@ -380,7 +388,10 @@ export class IodaService {
       const unit = SOURCE_UNITS[source];
       if (outcome.status === 'rejected')
         return { source, unit, coverage: 'unknown' as const, series: [] };
-      const series = outcome.value.series.map((item) => summarizeSeries(item, window, input.asOf));
+      const allowanceSeconds = STATUS_PUBLICATION_ALLOWANCES[source];
+      const series = outcome.value.series.map((item) =>
+        summarizeSeries(item, window, input.asOf, allowanceSeconds),
+      );
       return { source, unit, coverage: sourceCoverage(series), series };
     });
     const limitations = [
@@ -418,7 +429,7 @@ export class IodaService {
       );
     if (signals.some((item) => item.coverage === 'stale'))
       limitations.push(
-        `Stale means the latest completed bucket ended more than the ${PUBLICATION_ALLOWANCE_SECONDS}-second publication allowance before asOf; this server policy is not an upstream SLA.`,
+        "Stale means the time since the latest completed observation exceeds its source's publication allowance. See applied.signals.publicationAllowances for the server policy.",
       );
     return {
       entity,

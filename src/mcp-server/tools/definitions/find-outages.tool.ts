@@ -5,6 +5,7 @@
 import { tool, z } from '@cyanheads/mcp-ts-core';
 import { JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
 import {
+  EventOrderSchema,
   EventSchema,
   getIodaService,
   PaginationSchema,
@@ -36,6 +37,7 @@ import {
   scopeInputs,
   sourceFilter,
   unknownCodeNotice,
+  unknownExclusionNotice,
   unknownScopeNotice,
   validateWindow,
   windowInputs,
@@ -52,13 +54,13 @@ const globalDefaultNotice =
 const Output = z.object({
   events: z
     .array(EventSchema)
-    .describe('Original outage events and source scores without merging or ranking.'),
+    .describe('Unmerged outage events with original source scores, in the applied order.'),
   pagination: PaginationSchema.describe('Upstream page and possible continuation.'),
   provenance: ProvenanceSchema.describe('Endpoint and original source attribution.'),
 });
 export const findOutages = tool('ioda_find_outages', {
   description:
-    'Find IODA outage events overlapping an explicit Unix-second window of at most 31 days. Omit entity filters for global scope, which searches one day outside the window by default instead of 14; global searches over multi-day windows can time out, so narrow the window or add entityType. A code requires its entityType. relatedToType and relatedToCode limit results to entityType entities within one country, region, ASN, or geoasn. Source scores are not an absolute severity scale. Starts at until are included; adjacent windows can duplicate boundary detections. Starts may precede from; ends can be clipped at until and do not establish recovery. ignoreMethods excludes source.method, source.*, or *.method upstream before scoring. includeAlerts adds nested transitions and can increase size. Pages are zero-based; keep filters and limit fixed.',
+    'Find IODA outage events overlapping an explicit Unix-second window of at most 31 days. Omit entity filters for global scope, which searches one day outside the window by default instead of 14; global searches over multi-day windows can time out, so narrow the window or add entityType. A code requires its entityType. relatedToType and relatedToCode limit results to entityType entities within one country, region, ASN, or geoasn. Events default to oldest start first. Use source with score_desc because scores from different sources use different scales. Starts at until are included; adjacent windows can duplicate boundary detections. Starts may precede from; ends can be clipped at until and do not establish recovery. ignoreMethods excludes source.method, source.*, or *.method upstream before scoring. includeAlerts adds nested transitions and can increase size. Pages are zero-based; keep filters, order, and limit fixed.',
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: true },
   input: z.object({
     ...filterInputs,
@@ -66,6 +68,9 @@ export const findOutages = tool('ioda_find_outages', {
     ...windowInputs,
     ...pageInputs,
     ignoreMethods: ignoreMethodsInput,
+    order: EventOrderSchema.default('time_asc').describe(
+      'time_asc (oldest start first, default), time_desc (newest start first), or score_desc (highest raw event score first). Use source with score_desc because scores from different sources use different scales. Keep fixed across pages.',
+    ),
     includeAlerts: z
       .boolean()
       .default(false)
@@ -202,6 +207,7 @@ export const findOutages = tool('ioda_find_outages', {
       ...(ignoreMethods && { ignoreMethods }),
       ...(source && { source }),
       includeAlerts: input.includeAlerts,
+      order: input.order,
       extendWindowSeconds: extend.value,
       limit: limit.value,
       page: input.page,
@@ -225,6 +231,7 @@ export const findOutages = tool('ioda_find_outages', {
         [
           limit.notice,
           extend.notice,
+          unknownExclusionNotice(ignoreMethods),
           relatedMembershipNotice('ioda_find_outages', request),
           globalDefault && globalDefaultNotice,
           placeholderRegionNotice(result.events.map((event) => event.entity)),
