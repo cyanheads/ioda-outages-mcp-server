@@ -28,6 +28,8 @@ const runtimeEntries = [
   'node_modules/pkg/lib/skills/loader.js',
   'node_modules/@scope/skills/index.js',
   'node_modules/@scope/pkg/dist/.claude/hooks.js',
+  'node_modules/pkg/docs/AGENTS.md',
+  'node_modules/@scope/pkg/docs/CLAUDE.md',
 ];
 
 const agentDocEntries = [
@@ -40,6 +42,9 @@ const agentDocEntries = [
   'node_modules/@scope/pkg/node_modules/@scope/dep/framework-skills/x/SKILL.md',
   'node_modules/pkg/SKILL.md',
   'node_modules/pkg/docs/guide/SKILL.md',
+  'node_modules/pkg/AGENTS.md',
+  'node_modules/@scope/pkg/CLAUDE.md',
+  'node_modules/@scope/pkg/node_modules/@scope/dep/AGENTS.md',
 ];
 
 describe.each([
